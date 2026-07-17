@@ -58,7 +58,7 @@ export default function CaseStudiesList() {
                   </div>
                 </div>
                 <div className="p-6">
-                  <div className="text-xs text-[var(--na-text-muted)] font-mono">{c.client_name} × {c.provider_name}</div>
+                  <div className="text-xs text-[var(--na-text-muted)] font-mono">{c.client_name}{c.provider_name ? ` × ${c.provider_name}` : ""}</div>
                   <h3 className="mt-2 font-display text-2xl font-semibold text-[var(--na-text)] leading-tight">{c.title}</h3>
                   <p className="mt-3 text-sm text-[var(--na-text-soft)] leading-relaxed line-clamp-2">{c.summary}</p>
                   <div className="mt-5 flex items-center gap-4 flex-wrap">

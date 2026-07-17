@@ -214,7 +214,7 @@ export default function AdminCaseStudies() {
                     <div className="text-[var(--na-text)] font-medium">{cs.title}</div>
                     <div className="text-xs text-[var(--na-text-muted)] font-mono">/case-studies/{cs.slug}</div>
                   </td>
-                  <td className="p-4 text-[var(--na-text-soft)]">{cs.client_name} <span className="text-[var(--na-text-muted)]">×</span> {cs.provider_name}</td>
+                  <td className="p-4 text-[var(--na-text-soft)]">{cs.client_name}{cs.provider_name && <><span className="text-[var(--na-text-muted)]"> × </span>{cs.provider_name}</>}</td>
                   <td className="p-4 text-[var(--na-text-soft)]">{cs.industry}</td>
                   <td className="p-4">
                     <button onClick={() => togglePublish(cs)} className="flex items-center gap-1" data-testid={`cs-toggle-${cs.id}`}>

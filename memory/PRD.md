@@ -35,6 +35,12 @@ Build "an AI Marketplace" per attached business plan (Neural_Atlas_Business_Plan
 - **Static pages**: /about, /contact, /careers, /privacy, /terms, /cookies — served via shared StaticPage component with theme toggle in each page's header.
 - **Newsletter**: `POST /api/newsletter/subscribe` (public, idempotent) + `NewsletterForm` component in footer.
 
+### Feb 17, 2026 — iteration 5
+- **Case Study Wins**: full option-C build — public `/case-studies` list, public `/case-studies/:slug` detail page (hero, metrics strip, challenge/solution, quote, CTA), landing showcase between Founder and Forms, admin CRUD in a new tab.
+- **Seeded 3 samples** — Meridian Bank (BFSI, fraud RAG), Helios Pharma (trial analytics), Coastway Maritime (route AI) — with real hero images, metrics, and quotes.
+- **Admin CRUD**: /admin now has 4 tabs. Case Studies tab has a Dialog form with all fields (title auto-slugifies, metrics text `Label | Value` per line), publish toggle, edit, delete, view-live-in-new-tab.
+- **Public filtering**: only `published: true` docs shown publicly. `include_drafts=true` admin-only. Slug collisions return 409.
+
 ## Prioritized backlog
 ### P0
 - Stripe checkout for provider membership tiers.
