@@ -57,7 +57,6 @@ const Nav = () => (
       </nav>
       <div className="flex items-center gap-3">
         <ThemeToggle />
-        <Link to="/admin/login" className="btn-ghost text-sm" data-testid="nav-admin-btn">Admin</Link>
       </div>
     </div>
   </header>
