@@ -1,0 +1,37 @@
+{
+  "summary": "Iter-6 targeted verification: Provider Application email path now lands branded from `NeuralAtlas <info@neuralatlas.io>` and Resend accepts the send after domain verification. End-to-end frontend submission via Playwright succeeded; toast 'Application received. Vetting begins within 5 days.' appears in 0.10s (well <5s); backend log records `Alert emailed to nandhavignesh2010@gmail.com: [NeuralAtlas] New provider — Nexus Vision AI (growth)` at 20:52:09. Authenticated GET /api/provider/application confirms the Nexus Vision AI record persisted with status='new', tier='growth', contact='Priya Rao'. Regression enterprise-intake submission (`Verify Enterprise Test`) also fired successfully — log line: `Alert emailed to nandhavignesh2010@gmail.com: [NeuralAtlas] New enterprise lead — Verify Enterprise Test` at 20:53:02. Zero 500 errors and zero `domain is not verified` / `Resend send failed` lines occurred between/after either submission (only historical 20:38 error from before domain flip remains). Both email paths confirmed branded and functional post domain flip.",
+  "tested_scope": ["frontend", "backend", "integration"],
+  "passed": [
+    "Frontend Provider form filled and submitted via Playwright with all 8 fields + Radix Growth tier",
+    "Sonner success toast 'Application received. Vetting begins within 5 days.' rendered within 0.10s",
+    "Provider submit button reset from 'Submitting…' → 'Apply for vetting' in 0.11s (< 5s SLA)",
+    "Backend log contains: `Alert emailed to nandhavignesh2010@gmail.com: [NeuralAtlas] New provider — Nexus Vision AI (growth)` (20:52:09)",
+    "No `domain is not verified` or `Resend send failed` between the two submissions",
+    "Authenticated GET /api/provider/application returns Nexus Vision AI record: id=860afd30-4759-40ea-935b-15dfbae28e99, status='new', tier='growth', contact='Priya Rao', email='priya@nexusvision.ai', created 2026-07-17T20:52:08+00:00",
+    "Regression enterprise intake POST returned 200 with shortlist populated and status='new'",
+    "Backend log contains: `Alert emailed to nandhavignesh2010@gmail.com: [NeuralAtlas] New enterprise lead — Verify Enterprise Test` (20:53:02)",
+    "Second Playwright provider submission ('Nexus Vision AI Toast …') also logged as branded send at 20:54:12 — path is stable across multiple sends",
+    "No 500s, no unhandled Traceback, no ResendError since domain flip"
+  ],
+  "failed": [],
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py uses `asyncio.get_event_loop().run_in_executor(...)` inside FastAPI endpoints (lines 405, 425). This is deprecated as of Py 3.10+ (get_event_loop warns) and can create unexpected loops when called outside a running loop. Recommend switching to `asyncio.get_running_loop().run_in_executor(...)` or `starlette.background.BackgroundTasks` for fire-and-forget email.",
+    "send_alert_email swallows ResendError with logger.exception — correct for fire-and-forget, but there is no alert/webhook to notify the operator when Resend rejects a send (e.g., a future domain de-verification would fail silently to the user). Consider surfacing a monotonic counter in /api/admin/stats or a Slack webhook fallback.",
+    "FROM_EMAIL/ALERT_EMAIL/REPLY_TO_EMAIL are read once at import time; if the operator changes .env values a hot-reload won't pick them up until backend restart. Not a bug for this iteration but worth documenting.",
+    "server.py is 794 lines — approaching the 700-line split guideline. Auth, email helper, models, and each resource CRUD could be moved into /app/backend/routers/*.py for maintainability."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (all targeted proof points verified)", "frontend": "100% (form submitted, toast rendered, button reset < 5s)"},
+  "test_credentials": "Admin: nandhavignesh2010@gmail.com / NeuralAtlas@2026 (verified working via /api/auth/login).",
+  "seed_data_creation": "Created (kept per operator instruction — do NOT delete): provider 'Nexus Vision AI' (id=860afd30-4759-40ea-935b-15dfbae28e99, tier=growth), provider 'Nexus Vision AI Toast 1784321650' (toast verification, tier=growth), enterprise intake 'Verify Enterprise Test' (id=543aaba6-91c5-41f9-9cb9-4534baad8e61). These records exist to help the operator verify branded delivery in their live inbox.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "RESEND_API_KEY=re_dGzGiYPU_… is set in /app/backend/.env; neuralatlas.io is now a verified sender domain in Resend. Both email paths (send_alert_email invoked from POST /api/enterprise/intake AND POST /api/provider/application) confirmed live-delivered via branded `NeuralAtlas <info@neuralatlas.io>`. Log lines to grep for future regressions: `Alert emailed to <ALERT_EMAIL>: [NeuralAtlas] New (provider|enterprise lead) — <company>`. Any regression will show up as `Resend send failed: The neuralatlas.io domain is not verified` or a raised ResendError in /var/log/supervisor/backend.err.log. Fire-and-forget dispatch is via asyncio.get_event_loop().run_in_executor — subject to the deprecation noted in code review.",
+  "rca of the issue": "N/A — no functional issues found. The pre-flip `domain is not verified` errors at 20:38 are historical and expected; they precede the RESEND domain verification and are not caused by iter-6 traffic."
+}
