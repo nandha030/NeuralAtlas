@@ -32,6 +32,7 @@ ADMIN_PASSWORD = os.environ['ADMIN_PASSWORD']
 RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '')
 ALERT_EMAIL = os.environ.get('ALERT_EMAIL', '')
 FROM_EMAIL = os.environ.get('FROM_EMAIL', 'onboarding@resend.dev')
+REPLY_TO_EMAIL = os.environ.get('REPLY_TO_EMAIL', '')
 
 if RESEND_API_KEY:
     resend.api_key = RESEND_API_KEY
@@ -96,12 +97,15 @@ def send_alert_email(subject: str, html_body: str) -> None:
         logger.info(f"[email skipped, key missing] {subject}")
         return
     try:
-        resend.Emails.send({
+        params = {
             "from": FROM_EMAIL,
             "to": [ALERT_EMAIL],
             "subject": subject,
             "html": html_body,
-        })
+        }
+        if REPLY_TO_EMAIL:
+            params["reply_to"] = REPLY_TO_EMAIL
+        resend.Emails.send(params)
         logger.info(f"Alert emailed to {ALERT_EMAIL}: {subject}")
     except Exception as e:
         logger.exception(f"Resend send failed: {e}")
