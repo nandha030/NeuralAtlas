@@ -15,6 +15,7 @@ import { api } from "@/lib/api";
 import { Wordmark } from "@/components/Logo";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import NewsletterForm from "@/components/NewsletterForm";
+import CaseStudiesShowcase from "@/components/CaseStudiesShowcase";
 
 const IMG = {
   hero: "https://images.unsplash.com/photo-1770486036751-e55247238964?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxODF8MHwxfHNlYXJjaHwxfHxhYnN0cmFjdCUyMG5ldXJhbCUyMG5ldHdvcmslMjBub2RlcyUyMGRhcmt8ZW58MHx8fHwxNzg0MzEyMTQ4fDA&ixlib=rb-4.1.0&q=85",
@@ -51,6 +52,7 @@ const Nav = () => (
         <a href="#tiers" className="link-underline" data-testid="nav-tiers">Membership</a>
         <a href="#assess" className="link-underline" data-testid="nav-assess">AI Assessment</a>
         <a href="#network" className="link-underline" data-testid="nav-network">Network</a>
+        <Link to="/case-studies" className="link-underline" data-testid="nav-cases">Wins</Link>
         <a href="#founder" className="link-underline" data-testid="nav-founder">Founder</a>
       </nav>
       <div className="flex items-center gap-3">
@@ -512,6 +514,7 @@ const Footer = () => (
             <li><a href="/#tiers" className="text-[var(--na-text-soft)] hover:text-[var(--na-text)]" data-testid="footer-tiers">Membership</a></li>
             <li><a href="/#assess" className="text-[var(--na-text-soft)] hover:text-[var(--na-text)]" data-testid="footer-assess">AI Assessment</a></li>
             <li><a href="/#network" className="text-[var(--na-text-soft)] hover:text-[var(--na-text)]" data-testid="footer-network">Vetted Network</a></li>
+            <li><Link to="/case-studies" className="text-[var(--na-text-soft)] hover:text-[var(--na-text)]" data-testid="footer-cases">Case Studies</Link></li>
           </ul>
         </div>
         <div>
@@ -577,6 +580,7 @@ export default function Landing() {
       <Assessment />
       <Network />
       <Founder />
+      <CaseStudiesShowcase />
       <Forms />
       <Footer />
     </main>

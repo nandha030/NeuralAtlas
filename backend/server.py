@@ -215,6 +215,72 @@ class NewsletterSubscribe(BaseModel):
     email: EmailStr
 
 
+class CaseStudyMetric(BaseModel):
+    label: str
+    value: str
+
+
+class CaseStudy(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    slug: str
+    title: str
+    subtitle: str
+    client_name: str
+    industry: str
+    region: str
+    provider_name: str
+    tier: Literal["starter", "growth", "elite"] = "growth"
+    hero_image: str = ""
+    summary: str
+    challenge: str
+    solution: str
+    metrics: List[CaseStudyMetric] = Field(default_factory=list)
+    quote: str = ""
+    quote_author: str = ""
+    published: bool = False
+    created_at: str = Field(default_factory=now_iso)
+    updated_at: str = Field(default_factory=now_iso)
+
+
+class CaseStudyCreate(BaseModel):
+    slug: str
+    title: str
+    subtitle: str
+    client_name: str
+    industry: str
+    region: str
+    provider_name: str
+    tier: Literal["starter", "growth", "elite"] = "growth"
+    hero_image: str = ""
+    summary: str
+    challenge: str
+    solution: str
+    metrics: List[CaseStudyMetric] = Field(default_factory=list)
+    quote: str = ""
+    quote_author: str = ""
+    published: bool = False
+
+
+class CaseStudyUpdate(BaseModel):
+    slug: Optional[str] = None
+    title: Optional[str] = None
+    subtitle: Optional[str] = None
+    client_name: Optional[str] = None
+    industry: Optional[str] = None
+    region: Optional[str] = None
+    provider_name: Optional[str] = None
+    tier: Optional[Literal["starter", "growth", "elite"]] = None
+    hero_image: Optional[str] = None
+    summary: Optional[str] = None
+    challenge: Optional[str] = None
+    solution: Optional[str] = None
+    metrics: Optional[List[CaseStudyMetric]] = None
+    quote: Optional[str] = None
+    quote_author: Optional[str] = None
+    published: Optional[bool] = None
+
+
 # ---------- Shortlist matcher ----------
 
 async def generate_shortlist(intake: dict) -> List[dict]:
@@ -494,6 +560,68 @@ async def newsletter_subscribe(payload: NewsletterSubscribe):
     return {"ok": True, "email": email}
 
 
+# ---------- Case Studies ----------
+
+@api_router.get("/case-studies", response_model=List[CaseStudy])
+async def list_case_studies(include_drafts: bool = False, request: Request = None):
+    # Only admins can see drafts
+    query = {} if not include_drafts else None
+    if include_drafts:
+        try:
+            await get_current_admin(request)
+            query = {}
+        except HTTPException:
+            query = {"published": True}
+    else:
+        query = {"published": True}
+    docs = await db.case_studies.find(query, {"_id": 0}).sort("created_at", -1).to_list(200)
+    return docs
+
+
+@api_router.get("/case-studies/{slug}", response_model=CaseStudy)
+async def get_case_study(slug: str):
+    doc = await db.case_studies.find_one({"slug": slug, "published": True}, {"_id": 0})
+    if not doc:
+        raise HTTPException(404, "Not found")
+    return doc
+
+
+@api_router.post("/case-studies", response_model=CaseStudy)
+async def create_case_study(payload: CaseStudyCreate, user: dict = Depends(get_current_admin)):
+    if await db.case_studies.find_one({"slug": payload.slug}):
+        raise HTTPException(409, "Slug already exists")
+    obj = CaseStudy(**payload.model_dump())
+    await db.case_studies.insert_one(obj.model_dump())
+    return obj
+
+
+@api_router.patch("/case-studies/{cs_id}", response_model=CaseStudy)
+async def update_case_study(cs_id: str, upd: CaseStudyUpdate, user: dict = Depends(get_current_admin)):
+    updates = {k: v for k, v in upd.model_dump(exclude_unset=True).items() if v is not None}
+    if not updates:
+        raise HTTPException(400, "No fields to update")
+    if "slug" in updates:
+        clash = await db.case_studies.find_one({"slug": updates["slug"], "id": {"$ne": cs_id}})
+        if clash:
+            raise HTTPException(409, "Slug already exists")
+    if "metrics" in updates:
+        updates["metrics"] = [m.model_dump() if hasattr(m, "model_dump") else m for m in updates["metrics"]]
+    updates["updated_at"] = now_iso()
+    r = await db.case_studies.update_one({"id": cs_id}, {"$set": updates})
+    if r.matched_count == 0:
+        raise HTTPException(404, "Not found")
+    doc = await db.case_studies.find_one({"id": cs_id}, {"_id": 0})
+    return doc
+
+
+@api_router.delete("/case-studies/{cs_id}")
+async def delete_case_study(cs_id: str, user: dict = Depends(get_current_admin)):
+    r = await db.case_studies.delete_one({"id": cs_id})
+    if r.deleted_count == 0:
+        raise HTTPException(404, "Not found")
+    return {"ok": True}
+
+
 @api_router.get("/provider/application", response_model=List[ProviderApplication])
 async def list_provider_applications(user: dict = Depends(get_current_admin)):
     docs = await db.provider_applications.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
@@ -564,6 +692,81 @@ async def startup_event():
                 {"$set": {"password_hash": hash_password(ADMIN_PASSWORD)}},
             )
             logger.info(f"Rotated admin password: {ADMIN_EMAIL}")
+
+    # Seed sample case studies if none exist
+    if await db.case_studies.count_documents({}) == 0:
+        samples = [
+            {
+                "slug": "meridian-bank-fraud-rag",
+                "title": "Meridian Bank cuts fraud false-positives by 42%",
+                "subtitle": "A RAG copilot for the fraud ops floor, deployed in eight weeks.",
+                "client_name": "Meridian Bank",
+                "industry": "BFSI",
+                "region": "India",
+                "provider_name": "Ledger Neural",
+                "tier": "elite",
+                "hero_image": "https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=1600&q=80",
+                "summary": "A tier-1 Indian bank replaced its rules-only fraud triage with a retrieval-augmented copilot that reads policy, prior cases, and live transaction context.",
+                "challenge": "The fraud operations team was drowning in false positives — 3 in every 4 alerts were noise, and average handling time was rising 12% year-on-year. Legacy rule packs couldn't keep pace with new payment rails, and analysts had no context on prior similar cases.",
+                "solution": "NeuralAtlas matched Meridian with Ledger Neural, an Elite-tier RAG specialist. The team shipped a copilot that retrieves relevant policy, past disposition notes and merchant history for every alert. Deployed on-prem, integrated with the existing case-management tool. Weekly evaluation runs by the NeuralAtlas architect ensured drift stayed under 3%.",
+                "metrics": [
+                    {"label": "False-positive rate", "value": "-42%"},
+                    {"label": "Analyst handling time", "value": "-31%"},
+                    {"label": "Time to production", "value": "8 weeks"},
+                ],
+                "quote": "The shortlist landed in 48 hours and the architect stayed in the room through go-live. That combination is why we picked NeuralAtlas over the big four.",
+                "quote_author": "Head of Fraud Ops, Meridian Bank",
+                "published": True,
+            },
+            {
+                "slug": "helios-pharma-trial-analytics",
+                "title": "Helios Pharma accelerates trial readouts by 3x",
+                "subtitle": "Real-time analytics across five global trials, without touching the EDC.",
+                "client_name": "Helios Pharma",
+                "industry": "Pharma & Life Sciences",
+                "region": "UAE",
+                "provider_name": "Molecule.ai",
+                "tier": "elite",
+                "hero_image": "https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?auto=format&fit=crop&w=1600&q=80",
+                "summary": "A Dubai-based pharma matched with a boutique trial-analytics team compressed monthly readouts from two weeks to under four days.",
+                "challenge": "Helios ran five concurrent Phase-2 trials but each monthly readout took two weeks of manual SAS work. Biostatisticians were burnt out, and the CMO wanted daily visibility, not monthly.",
+                "solution": "NeuralAtlas paired Helios with Molecule.ai — a five-person specialist in trial data platforms. They built a read-only analytics layer over the EDC using dbt + a lightweight LLM summariser, published to the CMO's dashboard.",
+                "metrics": [
+                    {"label": "Readout cycle", "value": "3x faster"},
+                    {"label": "Biostat manual work", "value": "-70%"},
+                    {"label": "Regulator queries answered", "value": "under 24h"},
+                ],
+                "quote": "We evaluated two big consultancies for six months. NeuralAtlas found the right five-person team in a week.",
+                "quote_author": "Chief Medical Officer, Helios Pharma",
+                "published": True,
+            },
+            {
+                "slug": "coastway-maritime-route-ai",
+                "title": "Coastway Maritime saves $2.1M on bunker fuel",
+                "subtitle": "Route optimisation across 42 vessels, powered by a boutique four-person AI team.",
+                "client_name": "Coastway Maritime",
+                "industry": "Maritime",
+                "region": "India / UAE",
+                "provider_name": "Marlin AI",
+                "tier": "growth",
+                "hero_image": "https://images.unsplash.com/photo-1494412574643-ff11b0a5c1c3?auto=format&fit=crop&w=1600&q=80",
+                "summary": "A regional shipping operator matched with a niche AI team squeezed measurable fuel savings across a 42-vessel fleet in the first quarter.",
+                "challenge": "Fuel is 60% of operating cost. Coastway's fleet operations centre relied on tribal knowledge and static routing plans. They wanted AI, but every vendor pitched a $2M+ 18-month engagement.",
+                "solution": "NeuralAtlas introduced Marlin AI — a four-person team specialising in maritime weather + hull-fouling models. In six weeks they shipped a routing assistant integrated with the operator's existing AIS feed.",
+                "metrics": [
+                    {"label": "Bunker fuel saved", "value": "$2.1M / yr"},
+                    {"label": "Voyage plan accuracy", "value": "+18%"},
+                    {"label": "Payback period", "value": "4 months"},
+                ],
+                "quote": "Small team, sharp domain knowledge, real numbers. Exactly what a curated marketplace should deliver.",
+                "quote_author": "COO, Coastway Maritime",
+                "published": True,
+            },
+        ]
+        for s in samples:
+            obj = CaseStudy(**s)
+            await db.case_studies.insert_one(obj.model_dump())
+        logger.info(f"Seeded {len(samples)} sample case studies")
 
 
 app.include_router(api_router)

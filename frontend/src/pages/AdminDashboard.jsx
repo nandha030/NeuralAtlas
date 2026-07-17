@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { Wordmark } from "@/components/Logo";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useAuth } from "@/contexts/AuthContext";
+import AdminCaseStudies from "@/components/AdminCaseStudies";
 
 const STATUS_COLORS = {
   new: "text-[var(--na-cyan)] border-[var(--na-cyan)]/40",
@@ -162,6 +163,7 @@ export default function AdminDashboard() {
               <TabsTrigger value="providers" data-testid="tab-providers">Provider Vetting</TabsTrigger>
               <TabsTrigger value="enterprises" data-testid="tab-enterprises">Enterprise Leads</TabsTrigger>
               <TabsTrigger value="assessments" data-testid="tab-assessments">AI Assessments</TabsTrigger>
+              <TabsTrigger value="cases" data-testid="tab-cases">Case Studies</TabsTrigger>
             </TabsList>
 
             <TabsContent value="providers" className="mt-8">
@@ -310,6 +312,10 @@ export default function AdminDashboard() {
                   </div>
                 ))}
               </div>
+            </TabsContent>
+
+            <TabsContent value="cases" className="mt-8">
+              <AdminCaseStudies />
             </TabsContent>
           </Tabs>
         </div>

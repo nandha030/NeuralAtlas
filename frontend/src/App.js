@@ -9,6 +9,8 @@ import Careers from "@/pages/Careers";
 import Privacy from "@/pages/Privacy";
 import Terms from "@/pages/Terms";
 import Cookies from "@/pages/Cookies";
+import CaseStudiesList from "@/pages/CaseStudiesList";
+import CaseStudyDetail from "@/pages/CaseStudyDetail";
 import { Toaster } from "sonner";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
@@ -28,6 +30,8 @@ function App() {
               <Route path="/privacy" element={<Privacy />} />
               <Route path="/terms" element={<Terms />} />
               <Route path="/cookies" element={<Cookies />} />
+              <Route path="/case-studies" element={<CaseStudiesList />} />
+              <Route path="/case-studies/:slug" element={<CaseStudyDetail />} />
               <Route path="/admin/login" element={<AdminLogin />} />
               <Route path="/admin" element={
                 <ProtectedRoute><AdminDashboard /></ProtectedRoute>

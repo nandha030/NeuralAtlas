@@ -1,0 +1,69 @@
+{
+  "summary": "Iteration 5 fully validated. Backend: 43/43 pytest tests PASSED (15 new for case-studies covering seeded public list, unpublished 404, include_drafts admin-only, POST/PATCH/DELETE auth + persistence + 409 slug collision + 404 unknown). Frontend: /case-studies list renders 3 seeded cards (data-testid cs-card-<slug>) with hero image, industry+region badges, client × provider, title, summary, top metrics and 'Read the story'. Detail page renders title/subtitle/tier/metrics-strip/challenge/solution/summary/quote and cs-detail-cta + cs-detail-back. Unknown slug shows 'Case study not found' + cs-notfound-back. Landing has CaseStudiesShowcase (data-testid landing-case-studies) with 3 cards + All-wins link (landing-cs-all); nav-cases + footer-cases both route to /case-studies. Admin end-to-end: login -> tab-cases -> cs-new-btn opens cs-dialog -> filled title/client/industry, metrics text, publish toggle -> Save -> 'Created' toast + row appears with PUBLISHED badge -> Edit (cs-edit-<id>) changed title, persisted in table -> Toggle (cs-toggle-<id>) flipped Published->DRAFT and 'Unpublished' toast, item disappears from public /api/case-studies -> Delete (cs-delete-<id>) with accepted confirm removes row + 'Deleted' toast. 3 seeded case studies remain intact after cleanup.",
+  "tested_scope": ["backend", "frontend", "integration"],
+  "passed": [
+    "GET /api/case-studies public returns only published; 3 seeded slugs present",
+    "GET /api/case-studies/{slug} returns full doc for published, 404 for unknown, 404 for draft",
+    "GET /api/case-studies?include_drafts=true unauthenticated returns only published (drafts hidden)",
+    "GET /api/case-studies?include_drafts=true with admin Bearer returns drafts + published",
+    "POST /api/case-studies unauthenticated -> 401",
+    "POST /api/case-studies with admin Bearer creates + persists (verified via public GET)",
+    "POST /api/case-studies duplicate slug -> 409 (Slug already exists)",
+    "PATCH /api/case-studies/{id} unauthenticated -> 401",
+    "PATCH /api/case-studies/{id} updates title+published+metrics; verified via subsequent GET",
+    "PATCH /api/case-studies/{id} unknown id -> 404",
+    "PATCH /api/case-studies/{id} slug collision -> 409",
+    "DELETE /api/case-studies/{id} unauthenticated -> 401",
+    "DELETE /api/case-studies/{id} success 200 then 404 on repeat",
+    "Regression: 28 previous tests (auth, protection, public intake/provider/assessment, email-noop, shortlist, newsletter) all still pass",
+    "Frontend /case-studies renders 3 seeded cards with all required content",
+    "Frontend /case-studies/:slug renders full detail with metrics strip + quote + CTA + back link",
+    "Frontend /case-studies/unknown-slug shows 'Case study not found' + cs-notfound-back",
+    "Landing shows CaseStudiesShowcase with 3 cards + landing-cs-all link",
+    "nav-cases link routes to /case-studies",
+    "footer-cases link routes to /case-studies",
+    "Admin: tab-cases visible after login, existing drafts+published shown",
+    "Admin CREATE: cs-new-btn opens cs-dialog, filled form, Publish toggle on, Save -> 'Created' toast, row visible with PUBLISHED badge",
+    "New published item is fetchable at public /case-studies/<slug>",
+    "Admin EDIT: cs-edit-<id> opens dialog, title change persisted in table",
+    "Admin TOGGLE: cs-toggle-<id> flips PUBLISHED -> DRAFT, 'Unpublished' toast, and item disappears from public /api/case-studies list",
+    "Admin DELETE: cs-delete-<id> with accepted confirm removes row, 'Deleted' toast",
+    "Seeded case studies remain intact post-cleanup"
+  ],
+  "failed": [],
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Admin Case Studies table", "issues": ["Rows created without provider_name show 'TEST Client Co ×' (stray multiplication glyph). Consider hiding the '×' separator when provider_name is empty."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "(Cosmetic) In AdminCaseStudies.jsx table row, only render ' × <provider_name>' when provider_name is non-empty.",
+    "(Cosmetic) In CaseStudiesList.jsx card, apply the same guard so the '×' separator doesn't dangle when a provider is missing."
+  ],
+  "critical_code_review_comments": [
+    "server.py list_case_studies uses `request: Request = None` — works because FastAPI injects Request when the parameter is typed Request, but the default of None is misleading. Prefer removing the default and letting FastAPI inject it, or make the auth check explicit with an optional dependency.",
+    "server.py CaseStudy PATCH filters `if v is not None` — this means callers cannot clear a string field back to empty via PATCH (e.g. remove a quote). Currently benign for MVP but worth noting.",
+    "AdminCaseStudies.jsx: `slugify` auto-runs while typing the title, so if the admin edits the slug first and then edits the title, the slug is preserved only when `editing` is truthy. For a brand-new case-study creation, the slug is overwritten on every title keystroke — expected but could surprise users who type slug first.",
+    "AdminCaseStudies.jsx delete uses `window.confirm` (native browser confirm). Works, but inconsistent with the rest of the app's Shadcn UI. Non-blocking.",
+    "The `include_drafts=true` code path in server.py builds `query` twice (once initially, then reassigned in the branch); minor code smell but functionally correct.",
+    "Backend seeds case studies on startup only when the collection is empty. If an admin ever deletes all 3, the next restart re-seeds them. Consider seeding with a `seeded=True` flag if that's undesired.",
+    "Deprecated `@app.on_event` and `asyncio.get_event_loop().run_in_executor` are still present (carried over from iter-3); Py 3.11+ will raise DeprecationWarning but not break. Migrate to lifespan handlers in a future iteration."
+  ],
+  "updated_files": [
+    "/app/backend/tests/backend_test.py (added TestCaseStudiesPublic, TestCaseStudiesIncludeDrafts, TestCaseStudiesCRUD — 15 new tests)"
+  ],
+  "success_rate": {"backend": "100% (43/43)", "frontend": "100% (all iter-5 case-studies flows verified end-to-end)"},
+  "test_credentials": "Admin: nandhavignesh2010@gmail.com / NeuralAtlas@2026 (verified working).",
+  "seed_data_creation": "Created and cleaned up: test-draft-*, test-inc-draft-*, test-inc-admin-*, test-create-*, test-patch-*, test-collide-*, test-delete-* case study slugs (all deleted via test teardown or in-test finally blocks). One UI-driven test row 'TEST UI CS EDITED …' (id bac3f6c6-9368-495c-87b5-b343afd4ba09) was created, edited, toggled, then deleted via the admin UI in the same session. 3 seeded case studies remain intact.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Case studies collection = db.case_studies; seeded 3 (meridian-bank-fraud-rag, helios-pharma-trial-analytics, coastway-maritime-route-ai) on startup only if collection empty. AdminDashboard.jsx now has 4 tabs (Provider Vetting / Enterprise Leads / AI Assessments / Case Studies). Backend seeding is idempotent-empty (won't overwrite if any exist). Public list endpoint filters `published: true`. include_drafts=true is admin-only. Public detail endpoint filters both slug + published:true. Landing showcase only renders if API returns at least one item — the `[data-testid=landing-case-studies]` DOM node is absent while items.length === 0, so any test must wait_for_selector rather than page.evaluate scrollIntoView.",
+  "rca of the issue": "N/A — no functional bugs found in iteration 5."
+}

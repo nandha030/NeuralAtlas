@@ -340,5 +340,232 @@ class TestNewsletter:
         assert r.status_code == 422
 
 
+# ---------- Iteration 5: Case Studies ----------
+
+SEEDED_SLUGS = {
+    "meridian-bank-fraud-rag",
+    "helios-pharma-trial-analytics",
+    "coastway-maritime-route-ai",
+}
+
+
+class TestCaseStudiesPublic:
+    def test_public_list_returns_only_published_seeded(self):
+        r = requests.get(f"{API}/case-studies")
+        assert r.status_code == 200
+        items = r.json()
+        assert isinstance(items, list)
+        slugs = {i["slug"] for i in items}
+        for s in SEEDED_SLUGS:
+            assert s in slugs, f"Seeded slug {s} missing from public list"
+        # all returned must be published
+        for i in items:
+            assert i["published"] is True
+
+    def test_public_detail_returns_full_doc(self):
+        r = requests.get(f"{API}/case-studies/meridian-bank-fraud-rag")
+        assert r.status_code == 200
+        d = r.json()
+        assert d["slug"] == "meridian-bank-fraud-rag"
+        assert d["challenge"]
+        assert d["solution"]
+        assert d["quote"]
+        assert d["quote_author"]
+        assert isinstance(d["metrics"], list) and len(d["metrics"]) >= 1
+        m0 = d["metrics"][0]
+        assert "label" in m0 and "value" in m0
+
+    def test_public_detail_unknown_slug_404(self):
+        r = requests.get(f"{API}/case-studies/does-not-exist-xyz")
+        assert r.status_code == 404
+
+    def test_public_detail_unpublished_slug_404(self, auth_headers):
+        # Create draft, ensure public GET returns 404
+        slug = f"test-draft-{int(time.time())}"
+        payload = {
+            "slug": slug, "title": "TEST Draft", "subtitle": "sub",
+            "client_name": "TEST Client", "industry": "Tech", "region": "India",
+            "provider_name": "TEST Prov", "tier": "growth",
+            "summary": "s", "challenge": "c", "solution": "so",
+            "metrics": [{"label": "L", "value": "V"}],
+            "published": False,
+        }
+        cr = requests.post(f"{API}/case-studies", headers=auth_headers, json=payload)
+        assert cr.status_code == 200, cr.text
+        cs_id = cr.json()["id"]
+        try:
+            r = requests.get(f"{API}/case-studies/{slug}")
+            assert r.status_code == 404
+        finally:
+            requests.delete(f"{API}/case-studies/{cs_id}", headers=auth_headers)
+
+
+class TestCaseStudiesIncludeDrafts:
+    def test_include_drafts_without_auth_only_published(self, auth_headers):
+        # create a draft
+        slug = f"test-inc-draft-{int(time.time())}"
+        payload = {
+            "slug": slug, "title": "TEST inc draft", "subtitle": "s",
+            "client_name": "TC", "industry": "Tech", "region": "India",
+            "provider_name": "P", "tier": "starter",
+            "summary": "s", "challenge": "c", "solution": "so",
+            "metrics": [], "published": False,
+        }
+        cr = requests.post(f"{API}/case-studies", headers=auth_headers, json=payload)
+        cs_id = cr.json()["id"]
+        try:
+            r = requests.get(f"{API}/case-studies?include_drafts=true")
+            assert r.status_code == 200
+            slugs = {i["slug"] for i in r.json()}
+            assert slug not in slugs, "Draft leaked in public include_drafts request"
+            # all returned must still be published
+            for i in r.json():
+                assert i["published"] is True
+        finally:
+            requests.delete(f"{API}/case-studies/{cs_id}", headers=auth_headers)
+
+    def test_include_drafts_with_admin_returns_all(self, auth_headers):
+        slug = f"test-inc-admin-{int(time.time())}"
+        payload = {
+            "slug": slug, "title": "TEST inc admin", "subtitle": "s",
+            "client_name": "TC", "industry": "Tech", "region": "India",
+            "provider_name": "P", "tier": "starter",
+            "summary": "s", "challenge": "c", "solution": "so",
+            "metrics": [], "published": False,
+        }
+        cr = requests.post(f"{API}/case-studies", headers=auth_headers, json=payload)
+        cs_id = cr.json()["id"]
+        try:
+            r = requests.get(f"{API}/case-studies?include_drafts=true", headers=auth_headers)
+            assert r.status_code == 200
+            slugs = {i["slug"] for i in r.json()}
+            assert slug in slugs
+            for s in SEEDED_SLUGS:
+                assert s in slugs
+        finally:
+            requests.delete(f"{API}/case-studies/{cs_id}", headers=auth_headers)
+
+
+class TestCaseStudiesCRUD:
+    def test_create_requires_auth(self):
+        r = requests.post(f"{API}/case-studies", json={
+            "slug": "x", "title": "x", "subtitle": "x", "client_name": "x",
+            "industry": "x", "region": "x", "provider_name": "x",
+            "summary": "x", "challenge": "x", "solution": "x",
+        })
+        assert r.status_code == 401
+
+    def test_create_and_persist_get(self, auth_headers):
+        slug = f"test-create-{int(time.time())}"
+        payload = {
+            "slug": slug, "title": "TEST Create", "subtitle": "sub line",
+            "client_name": "TEST Client", "industry": "BFSI", "region": "India",
+            "provider_name": "TEST Prov", "tier": "growth",
+            "hero_image": "https://example.com/x.jpg",
+            "summary": "sum", "challenge": "chal", "solution": "sol",
+            "metrics": [{"label": "Users saved", "value": "500k"}, {"label": "Latency", "value": "-60%"}],
+            "quote": "great", "quote_author": "CTO, TEST",
+            "published": True,
+        }
+        r = requests.post(f"{API}/case-studies", headers=auth_headers, json=payload)
+        assert r.status_code == 200, r.text
+        created = r.json()
+        assert created["slug"] == slug
+        assert created["title"] == "TEST Create"
+        assert len(created["metrics"]) == 2
+        assert created["metrics"][0]["label"] == "Users saved"
+        assert created["published"] is True
+        cs_id = created["id"]
+        try:
+            # GET via public list (should include since published)
+            r2 = requests.get(f"{API}/case-studies/{slug}")
+            assert r2.status_code == 200
+            assert r2.json()["title"] == "TEST Create"
+        finally:
+            requests.delete(f"{API}/case-studies/{cs_id}", headers=auth_headers)
+
+    def test_create_duplicate_slug_409(self, auth_headers):
+        r = requests.post(f"{API}/case-studies", headers=auth_headers, json={
+            "slug": "meridian-bank-fraud-rag",  # collides with seed
+            "title": "dup", "subtitle": "s", "client_name": "c",
+            "industry": "i", "region": "r", "provider_name": "p",
+            "summary": "s", "challenge": "c", "solution": "s",
+        })
+        assert r.status_code == 409
+
+    def test_patch_requires_auth(self, auth_headers):
+        # get one seeded id
+        r = requests.get(f"{API}/case-studies", headers=auth_headers)
+        cs_id = r.json()[0]["id"]
+        r2 = requests.patch(f"{API}/case-studies/{cs_id}", json={"title": "hijack"})
+        assert r2.status_code == 401
+
+    def test_patch_update_and_persist(self, auth_headers):
+        slug = f"test-patch-{int(time.time())}"
+        cr = requests.post(f"{API}/case-studies", headers=auth_headers, json={
+            "slug": slug, "title": "before", "subtitle": "s",
+            "client_name": "c", "industry": "i", "region": "r",
+            "provider_name": "p", "summary": "s", "challenge": "c", "solution": "s",
+            "metrics": [{"label": "A", "value": "1"}],
+            "published": False,
+        })
+        cs_id = cr.json()["id"]
+        try:
+            r = requests.patch(f"{API}/case-studies/{cs_id}", headers=auth_headers,
+                               json={"title": "after", "published": True,
+                                     "metrics": [{"label": "B", "value": "2"}]})
+            assert r.status_code == 200, r.text
+            data = r.json()
+            assert data["title"] == "after"
+            assert data["published"] is True
+            assert data["metrics"] == [{"label": "B", "value": "2"}]
+            # verify persistence via public GET (now published)
+            r2 = requests.get(f"{API}/case-studies/{slug}")
+            assert r2.status_code == 200
+            assert r2.json()["title"] == "after"
+        finally:
+            requests.delete(f"{API}/case-studies/{cs_id}", headers=auth_headers)
+
+    def test_patch_unknown_id_404(self, auth_headers):
+        r = requests.patch(f"{API}/case-studies/does-not-exist", headers=auth_headers,
+                           json={"title": "x"})
+        assert r.status_code == 404
+
+    def test_patch_slug_collision_409(self, auth_headers):
+        slug = f"test-collide-{int(time.time())}"
+        cr = requests.post(f"{API}/case-studies", headers=auth_headers, json={
+            "slug": slug, "title": "t", "subtitle": "s",
+            "client_name": "c", "industry": "i", "region": "r",
+            "provider_name": "p", "summary": "s", "challenge": "c", "solution": "s",
+        })
+        cs_id = cr.json()["id"]
+        try:
+            r = requests.patch(f"{API}/case-studies/{cs_id}", headers=auth_headers,
+                               json={"slug": "meridian-bank-fraud-rag"})
+            assert r.status_code == 409
+        finally:
+            requests.delete(f"{API}/case-studies/{cs_id}", headers=auth_headers)
+
+    def test_delete_requires_auth(self, auth_headers):
+        r = requests.get(f"{API}/case-studies", headers=auth_headers)
+        cs_id = r.json()[0]["id"]
+        r2 = requests.delete(f"{API}/case-studies/{cs_id}")
+        assert r2.status_code == 401
+
+    def test_delete_flow_and_404(self, auth_headers):
+        slug = f"test-delete-{int(time.time())}"
+        cr = requests.post(f"{API}/case-studies", headers=auth_headers, json={
+            "slug": slug, "title": "t", "subtitle": "s",
+            "client_name": "c", "industry": "i", "region": "r",
+            "provider_name": "p", "summary": "s", "challenge": "c", "solution": "s",
+        })
+        cs_id = cr.json()["id"]
+        r = requests.delete(f"{API}/case-studies/{cs_id}", headers=auth_headers)
+        assert r.status_code == 200
+        # second delete -> 404
+        r2 = requests.delete(f"{API}/case-studies/{cs_id}", headers=auth_headers)
+        assert r2.status_code == 404
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "--tb=short"])
