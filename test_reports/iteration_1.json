@@ -1,0 +1,29 @@
+{
+  "summary": "Backend fully verified end-to-end (health, enterprise CRUD+PATCH, provider CRUD+PATCH, assessment with real Claude Sonnet 4.6 LLM, admin/stats with correct ARR aggregation). Frontend landing renders all required data-testids and admin loads. CRITICAL UI bug found: a decorative div with class 'tracing-border' (Landing.jsx around line 250, .lg:col-span-7.tracing-border) has default pointer-events enabled and covers the assessment/enterprise/provider form area, capturing clicks that should hit Radix Select triggers and buttons. document.elementFromPoint over the Industry select returns the tracing-border div, so mouse users cannot open selects or click the Generate/Submit buttons reliably. Keyboard navigation (focus + Enter) works, and after neutralizing the overlay in test, the LLM assessment result panel renders correctly.",
+  "tested_scope": ["backend", "frontend", "integration"],
+  "passed": [
+    "GET /api/ returns {service, status:'live'} (200)",
+    "POST /api/enterprise/intake creates record; GET lists it (200)",
+    "POST /api/provider/application creates record; PATCH /provider/application/{id} status:approved returns {ok:true}",
+    "POST /api/assessment returns score=70 for (4,3,2,5) — matches sum/20*100; report_markdown is a real Claude Sonnet 4.6 markdown report (>500 chars, starts with '# AI Maturity Snapshot')",
+    "GET /api/admin/stats aggregates correctly; estimated_arr_usd=5000 after approving 1 elite provider",
+    "Landing page renders all required data-testids (nav-logo, nav-admin-btn, hero-cta-assess, tier-*-card, assessment-form, ent-submit, prov-submit)",
+    "Radix Select options render 8 industries when opened via keyboard (Enter/ArrowDown)",
+    "Assessment result panel [data-testid=assess-result] renders the LLM markdown after submit (verified via keyboard-driven flow)"
+  ],
+  "failed": [
+    {
+      "area": "frontend / Landing.jsx overlay",
+      "issue": "The decorative .tracing-border div (lg:col-span-7 tracing-border, ~line 250) sits above the form column and captures pointer events. Mouse clicks on assess-industry, ent-industry, ent-size, ent-budget, ent-timeline, prov-size, prov-tier and the Generate/Submit buttons are intercepted; Select dropdowns fail to open for real users. document.elementFromPoint at the Industry trigger center returns 'DIV.lg:col-span-7 tracing-border' rather than the button.",
+      "evidence": "Playwright click timed out 15s on [data-testid=assess-industry] with Playwright log 'DIV.lg:col-span-7.tracing-border intercepts pointer events'. Keyboard-only path succeeded and produced score=? via LLM.",
+      "priority": "HIGH"
+    }
+  ],
+  "action_items": [
+    "In /app/frontend/src/pages/Landing.jsx (and any shared CSS defining .tracing-border), add `pointer-events: none;` to the decorative .tracing-border wrapper/SVG so it does not block clicks on the underlying form. If the tracing-border wraps the form (used as a container), apply pointer-events:none to the SVG/pseudo-element itself while keeping the container interactive — the goal is that elementFromPoint returns the form controls, not the tracing decoration.",
+    "After the fix, re-run the full landing-to-admin flow (assessment submit -> ent submit -> prov submit -> /admin verify counts and ARR). Backend needs no changes."
+  ],
+  "success_rate": {"backend": "100%", "frontend": "60%"},
+  "retest_needed": true,
+  "full_testing_deferred": true
+}
