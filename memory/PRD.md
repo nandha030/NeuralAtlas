@@ -1,44 +1,55 @@
-# NeuralAtlas.io — PRD
+# NeuralAtlas — PRD
 
 ## Original problem statement
-User wanted to build "an AI Marketplace" per attached business plan (Neural_Atlas_Business_Plan.docx). Follow-up: **modern design vibe, Landing/Marketing site with AI-integrated backend + Admin panel, bridging small/mid/large enterprises with the AI startup ecosystem. Name: NeuralAtlas.io. Bangalore & Dubai based company.**
+Build "an AI Marketplace" per attached business plan (Neural_Atlas_Business_Plan.docx). Follow-up: modern design, Landing/Marketing site with AI-integrated backend + Admin panel, bridging small/mid/large enterprises with AI startup ecosystem. Name: NeuralAtlas. Bangalore & Dubai based. Later iteration: private admin login, new compass logo + favicon, email alerts, Space Grotesk font, dual light/dark theme with toggle.
 
 ## Architecture
-- **Frontend:** React 19 + React Router, Tailwind + Shadcn UI. Dark boutique theme. Playfair Display (display) + Manrope (body) + JetBrains Mono (labels). Gold `#C5A059` + Cyan `#00E5FF` accents on `#0A0E17` base. Framer Motion for entrance.
-- **Backend:** FastAPI + Motor (Mongo). All endpoints under `/api`. LLM via **Emergent Universal LLM Key + Claude Sonnet 4.6** (user asked for Ollama; Ollama can't run in this cloud env, so we substituted Emergent — same free-to-user experience).
-- **Data models:** `enterprise_intakes`, `provider_applications`, `assessments` — all with UUID ids, ISO datetime strings.
+- **Frontend**: React 19 + React Router, Tailwind + Shadcn UI, `next-themes` pattern via custom ThemeContext (`.dark` class on `<html>`). **Space Grotesk** display + body, JetBrains Mono labels. CSS-variable theme tokens (`--na-bg`, `--na-gold`, `--na-cyan`, etc.) that swap between light & dark. Framer Motion for entrance animations.
+- **Backend**: FastAPI + Motor (Mongo), all endpoints under `/api`. JWT auth (HS256, 12h expiry) via Bearer token + cookie fallback. Bcrypt password hashing. LLM via Emergent Universal Key + Claude Sonnet 4.6. Email alerts via Resend (no-op when `RESEND_API_KEY` empty).
+- **Auth**: Single seeded admin (email/password from `.env`); rotates password if `.env` value changes. `ProtectedRoute` wraps `/admin`.
+- **Data models**: `users`, `enterprise_intakes`, `provider_applications`, `assessments` — all UUID ids, ISO datetime strings.
 
 ## User personas
-1. **Enterprise buyer** (CIO / Head of Digital / Innovation Head) at BFSI, Pharma, Energy, Manufacturing, Maritime, Retail, Telecom — small/mid/large. Free.
-2. **AI service provider / startup / consultancy** — paid membership ($500 / $1,500 / $5,000 per year).
-3. **Founder / operator (Admin)** — reviews leads, vets providers, moves them through kanban.
+1. Enterprise buyer (CIO / Head of Digital) — free intake.
+2. AI provider / startup / consultancy — paid membership tiers ($500 / $1,500 / $5,000).
+3. Founder/Operator (Admin) — vets, matches, tracks pipeline.
 
-## What's implemented (Feb 17, 2026 — MVP v1)
-- Landing (`/`): sticky glass nav, hero with live-pipeline card, How-it-Works (enterprise vs provider), 3-tier pricing with animated tracing-border on Elite, AI Maturity Assessment (Claude Sonnet 4.6 generates a markdown report), vetted-provider marquee, founder+rubric section, enterprise intake form, provider application form, Dubai + Bangalore footer.
-- Admin (`/admin`, no auth for MVP): stats cards (enterprises, providers, assessments, estimated ARR), Provider Vetting kanban (new/assessing/approved/rejected) with Move dropdown, Enterprise Leads table with status update, AI Assessments cards with expandable reports.
-- Backend endpoints: `POST/GET /api/enterprise/intake`, `PATCH /api/enterprise/intake/{id}`, `POST/GET /api/provider/application`, `PATCH /api/provider/application/{id}`, `POST/GET /api/assessment`, `GET /api/admin/stats`.
-- Estimated ARR auto-computed from approved providers × tier price.
-- Testing: 100% pass on both backend + frontend end-to-end (iteration_2).
+## What's implemented
+### Feb 17, 2026 — MVP v1
+- Landing (`/`): sticky glass nav, hero + live pipeline, How-it-Works, 3-tier pricing (tracing-border on Elite), AI Maturity Assessment (Claude Sonnet 4.6), vetted-provider marquee, founder + vetting rubric, enterprise + provider intake forms, dual-city footer.
+- Admin (`/admin`, open at first): stats cards, provider vetting kanban with Move dropdown, enterprise leads table, AI assessment cards.
+- Public + protected endpoints, LLM markdown report generation, ARR aggregation.
+
+### Feb 17, 2026 — iteration 3
+- **Private admin login** at `/admin/login` — JWT (Bearer + cookie), seeded admin (email/password in `.env`), auto-rotation on password change, protected admin endpoints (`GET /api/admin/stats`, list + patch endpoints).
+- **Sign-out** button in admin header — clears token, redirects to login.
+- **New compass logo** (inline SVG in `/app/frontend/src/components/Logo.jsx`) + favicon.svg — gold gradient, scales cleanly, theme-aware.
+- **Email alerts via Resend** on new enterprise intake and provider application — sent to `ALERT_EMAIL` (default `info@neuralatlas.io`) from `FROM_EMAIL`. Gracefully skipped when `RESEND_API_KEY` empty.
+- **Rebrand**: Playfair Display → **Space Grotesk** (modern geometric sans). Wordmark now "NeuralAtlas" with the "Atlas" in gold.
+- **Dual light + dark theme** — CSS variable tokens for background, text, borders, gold, cyan. Toggle button (`data-testid=theme-toggle`) in nav and login header, persists to `localStorage.na_theme`.
 
 ## Prioritized backlog
 ### P0
-- Admin authentication (protect `/admin` — currently public).
-- Email notifications on new intakes / applications (Resend or SendGrid).
+- Stripe checkout for provider membership tiers.
 
 ### P1
-- Stripe checkout for provider membership tiers.
-- Rich markdown rendering (react-markdown) on the assessment report.
-- Named provider profiles + public "Featured providers" detail pages.
+- Rich markdown rendering (react-markdown) on assessment report.
+- Automated LLM-based enterprise → provider matcher (auto-shortlist 3).
 - Provider portal (login → see intros, manage listing).
+- Brute-force lockout on admin login (5 attempts / 15 min).
 
 ### P2
 - Case studies / success stories CMS section.
-- Multi-language (Arabic / Hindi) for Dubai + Bangalore audiences.
-- Automated shortlist matching (LLM matches enterprise intake → 3 providers).
+- Multi-language (Arabic / Hindi) support.
 - Analytics dashboard: funnel, conversion, revenue.
+- Migrate `@app.on_event` → FastAPI `lifespan` context manager.
+- Split Landing.jsx into per-section modules.
 
-## Next tasks (in order)
-1. Admin auth (JWT or Emergent Google login).
+## Credentials
+Admin login credentials stored in `/app/memory/test_credentials.md`.
+
+## Next tasks (recommended)
+1. Add Resend API key to `.env` so alerts start flowing.
 2. Stripe integration for provider payments.
-3. Email notifications on form submissions.
-4. Automated LLM-based enterprise → provider matcher.
+3. LLM-based auto-shortlist matcher.
+4. Case studies + testimonials section.
