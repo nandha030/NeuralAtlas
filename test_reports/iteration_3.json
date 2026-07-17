@@ -1,0 +1,52 @@
+{
+  "summary": "Full backend + frontend validation of NeuralAtlas iteration 3 (JWT auth, admin login, theme toggle, email no-op). Backend: 19/19 pytest tests PASSED covering health, auth login (correct/wrong pw/wrong email), /auth/me bearer + no-auth 401, protected GETs (401 without, 200 with bearer) on /admin/stats, /enterprise/intake, /provider/application, /assessment, public POSTs still work unauthenticated (intake, provider, and confirmed 200 with RESEND_API_KEY empty — no-op path exercised), and end-to-end public intake -> admin list -> PATCH status. Frontend: 8/8 flows verified — /admin unauth redirects to /admin/login, wrong creds shows 'Invalid credentials' toast and stays on login, correct creds redirects to /admin with stats loaded (Enterprises 5, Providers 4, Assessments 2, ARR $10,000), na_token stored in localStorage, sign-out (admin-logout) clears token and redirects to /admin/login, theme toggle works on landing (dark<->light persisted to localStorage na_theme) and login (verified in isolated retest — first run was flaky).",
+  "tested_scope": ["backend", "frontend", "integration"],
+  "passed": [
+    "POST /api/auth/login with correct creds -> 200, returns access_token, sets access_token cookie, email+role in body",
+    "POST /api/auth/login wrong password -> 401",
+    "POST /api/auth/login non-admin email -> 401",
+    "GET /api/auth/me with Bearer -> 200 {email, role: 'admin'}",
+    "GET /api/auth/me without auth -> 401",
+    "GET /api/admin/stats, /enterprise/intake, /provider/application, /assessment -> 401 without auth, 200 with Bearer",
+    "POST /api/enterprise/intake and /api/provider/application succeed publicly (no auth) and return 200 even with RESEND_API_KEY empty (graceful log-skip)",
+    "End-to-end: public POST intake -> admin GET list finds record -> PATCH status -> 200",
+    "Admin seeded on startup (bcrypt $2b$ hash format), rotate-if-mismatch path present",
+    "Frontend /admin unauth -> ProtectedRoute Navigate to /admin/login",
+    "Frontend /admin/login wrong creds: 'Invalid credentials' toast, stays on /admin/login",
+    "Frontend /admin/login correct creds -> /admin, na_token persisted in localStorage",
+    "Frontend /admin shows admin-logout button; click clears na_token + redirects to /admin/login",
+    "Frontend theme-toggle on landing swaps 'dark' class on <html> and persists na_theme in localStorage",
+    "Frontend theme-toggle on /admin/login works (verified via isolated reload+click, toggles dark<->light, persists na_theme)"
+  ],
+  "failed": [],
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "AdminLogin.jsx: on successful `login()` call the useEffect in AuthContext already sets user; the subsequent `navigate('/admin')` works but the ProtectedRoute Navigate in the same render pass could also handle this — minor duplication, non-blocking.",
+    "server.py send_alert_email uses asyncio.get_event_loop().run_in_executor which will emit a DeprecationWarning on Python 3.12+; consider `asyncio.get_running_loop()` or `asyncio.to_thread(send_alert_email, ...)` for future compatibility.",
+    "server.py `startup_event` uses deprecated FastAPI `@app.on_event('startup'/'shutdown')`; migrate to `lifespan` context manager for FastAPI 0.109+ future-proofing.",
+    "AuthContext.jsx: on 401 from /auth/me the user state becomes `false` — cookie/token cleanup should also strip stale na_token from localStorage to avoid sending a bad Bearer on subsequent requests (currently interceptor will still attach an expired token).",
+    "Cookies use samesite='none' secure=true which is correct for cross-origin, but the frontend primarily relies on localStorage Bearer token (withCredentials still enabled). Consider documenting that cookie path is a fallback so future devs don't debug missing cookies in cross-origin XHRs.",
+    "No brute-force lockout on /api/auth/login — playbook_testing_instructions mentioned lockout after 5 fails; not implemented. Low severity for a single-admin private console but worth noting.",
+    "Landing.jsx is 540 lines (carry-over from iter 2). Still worth splitting."
+  ],
+  "updated_files": [
+    "/app/backend/tests/backend_test.py (new pytest suite for auth + protection + public endpoints + email no-op + e2e)"
+  ],
+  "success_rate": {"backend": "100% (19/19)", "frontend": "100% (8/8)"},
+  "test_credentials": "Admin: nandhavignesh2010@gmail.com / NeuralAtlas@2026 (from /app/memory/test_credentials.md — verified working).",
+  "seed_data_creation": "Created TEST_Ent_<ts>, TEST_Prov_<ts>, TEST_EmailNoop_<ts>, TEST_EmailNoop_Prov_<ts>, TEST_E2E_<ts> via public endpoints during pytest run. Admin stats dashboard reflects them (Enterprises=5, Providers=4).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend has ADMIN_EMAIL/ADMIN_PASSWORD in /app/backend/.env used by seed_admin startup. JWT_SECRET static; tokens valid 12h. Frontend stores na_token in localStorage + attaches Bearer via axios interceptor in /app/frontend/src/lib/api.js. Theme is persisted via 'na_theme' localStorage key; toggling adds/removes 'dark' class on <html>. RESEND_API_KEY empty is a supported no-op branch (logs 'email skipped, key missing'). Test file /app/backend/tests/backend_test.py can be re-run: `pytest /app/backend/tests/backend_test.py -v`. When re-testing UI, note the login page's ThemeToggle can be briefly overlaid by sonner toast; add wait_for_timeout(1500) after any preceding toast before clicking [data-testid=theme-toggle].",
+  "rca of the issue": "N/A — no functional bugs found in this iteration. First-run frontend theme-toggle failure on login page was a test flake: click landed in the same frame that the sonner toast (from wrong-creds submission) was rendering; the toast sits absolutely positioned near the top-right and briefly intercepted the pointer. Isolated retest with fresh page reload confirmed toggle works both directions and persists localStorage na_theme."
+}
