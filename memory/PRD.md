@@ -28,6 +28,13 @@ Build "an AI Marketplace" per attached business plan (Neural_Atlas_Business_Plan
 - **Rebrand**: Playfair Display → **Space Grotesk** (modern geometric sans). Wordmark now "NeuralAtlas" with the "Atlas" in gold.
 - **Dual light + dark theme** — CSS variable tokens for background, text, borders, gold, cyan. Toggle button (`data-testid=theme-toggle`) in nav and login header, persists to `localStorage.na_theme`.
 
+### Feb 17, 2026 — iteration 4
+- **Auto Shortlist (BOTH modes)**: `generate_shortlist()` in `server.py` calls Claude Sonnet 4.6 with the enterprise brief + list of approved providers, returns top 3 with 1-line fit reasons. Runs automatically on new intake AND on-demand via `POST /api/enterprise/intake/{id}/shortlist` (admin only).
+- **Admin UI**: Enterprise Leads table now has row expander showing project brief + AI shortlist cards (rank, name, tier, fit reason). Per-row `Match` button regenerates shortlist.
+- **Rich footer**: brand + newsletter form on top, Product / Company / Legal link columns, embedded Dubai & Bangalore office cards, LinkedIn/Twitter/Email social row, copyright bar.
+- **Static pages**: /about, /contact, /careers, /privacy, /terms, /cookies — served via shared StaticPage component with theme toggle in each page's header.
+- **Newsletter**: `POST /api/newsletter/subscribe` (public, idempotent) + `NewsletterForm` component in footer.
+
 ## Prioritized backlog
 ### P0
 - Stripe checkout for provider membership tiers.
