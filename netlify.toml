@@ -1,0 +1,26 @@
+[build]
+  base = "frontend"
+  command = "yarn build"
+  publish = "build"
+
+[build.environment]
+  # Node version for the Netlify build image
+  NODE_VERSION = "20"
+  # Skip Netlify's own secrets scan on CRA output
+  SECRETS_SCAN_OMIT_PATHS = "frontend/build/**"
+
+# SPA fallback so React Router client-side routes work on hard refresh
+# (e.g. /admin/login, /case-studies/:slug)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Sensible default security headers
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
