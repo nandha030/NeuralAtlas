@@ -1,0 +1,147 @@
+{
+  "theme_strategy": "dark_mode_preferred",
+  "design_concept": "Luxury Enterprise AI (Dubai Elegance + Bangalore Tech)",
+  "typography": {
+    "fonts": {
+      "headings": "'Playfair Display', serif",
+      "body": "'Manrope', sans-serif",
+      "monospace": "'JetBrains Mono', monospace"
+    },
+    "scales": {
+      "h1": "text-5xl md:text-7xl tracking-tight leading-none",
+      "h2": "text-3xl md:text-4xl tracking-tight leading-tight",
+      "h3": "text-xl md:text-2xl",
+      "body": "text-base leading-relaxed",
+      "labels": "text-xs uppercase tracking-[0.2em]"
+    }
+  },
+  "colors": {
+    "background": "#0A0E17",
+    "surface": "#111827",
+    "surface_elevated": "#1F2937",
+    "primary": "#C5A059",
+    "primary_hover": "#D4AF37",
+    "accent": "#00E5FF",
+    "text_primary": "#FFFFFF",
+    "text_secondary": "#9CA3AF",
+    "border": "rgba(255, 255, 255, 0.1)"
+  },
+  "visual_enhancers": {
+    "glassmorphism": "backdrop-blur-xl bg-[#0A0E17]/70 border border-white/10",
+    "shadows": "shadow-[0_8px_32px_rgba(0,0,0,0.5)]",
+    "gradients": "bg-gradient-to-br from-[#111827] to-[#0A0E17]",
+    "tracing_beam": "mask-image to create shimmering border for the Elite pricing tier and AI assessment CTA"
+  },
+  "layouts": {
+    "marketing": {
+      "spacing": "Generous sections py-24 md:py-32, gap-8 to gap-12",
+      "grid": "Bento style, asymmetric. grid-cols-1 md:grid-cols-12"
+    },
+    "admin": {
+      "spacing": "Dense layout, p-4 to p-6, gap-4",
+      "grid": "High density, strict columns for data tables and kanban"
+    }
+  },
+  "media": {
+    "image_urls": {
+      "hero_bg": {
+        "url": "https://images.unsplash.com/photo-1770486036751-e55247238964?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxODF8MHwxfHNlYXJjaHwxfHxhYnN0cmFjdCUyMG5ldXJhbCUyMG5ldHdvcmslMjBub2RlcyUyMGRhcmt8ZW58MHx8fHwxNzg0MzEyMTQ4fDA&ixlib=rb-4.1.0&q=85",
+        "description": "Abstract neural network nodes dark"
+      },
+      "enterprise_collaboration": {
+        "url": "https://images.unsplash.com/photo-1758518729685-f88df7890776?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Nzh8MHwxfHNlYXJjaHwyfHxleGVjdXRpdmVzJTIwbWVldGluZyUyMG1vZGVybiUyMG9mZmljZXxlbnwwfHx8fDE3ODQzMTIxNDh8MA&ixlib=rb-4.1.0&q=85",
+        "description": "Executives meeting"
+      },
+      "founder_portrait": {
+        "url": "https://images.unsplash.com/photo-1758691737644-ef8be18256c3?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NzV8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBmb3VuZGVyJTIwcG9ydHJhaXQlMjBvZmZpY2V8ZW58MHx8fHwxNzg0MzEyMTQ4fDA&ixlib=rb-4.1.0&q=85",
+        "description": "Professional founder portrait"
+      },
+      "dubai_skyline": {
+        "url": "https://images.unsplash.com/photo-1512453979798-5ea266f8880c?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzF8MHwxfHNlYXJjaHwxfHxkdWJhaSUyMHNreWxpbmUlMjBtb2Rlcm4lMjBhcmNoaXRlY3R1cmV8ZW58MHx8fHwxNzg0MzEyMTQ4fDA&ixlib=rb-4.1.0&q=85",
+        "description": "Dubai aerial highway"
+      },
+      "bangalore_tech": {
+        "url": "https://images.unsplash.com/photo-1698822457446-ac18737a2ac4?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzOTB8MHwxfHNlYXJjaHwzfHxiYW5nYWxvcmUlMjB0ZWNoJTIwcGFyayUyMG1vZGVybiUyMGFyY2hpdGVjdHVyZXxlbnwwfHx8fDE3ODQzMTIxNjB8MA&ixlib=rb-4.1.0&q=85",
+        "description": "Bangalore modern tech park"
+      }
+    }
+  },
+  "components": [
+    {
+      "name": "Navigation",
+      "path": "/",
+      "instructions": "Sticky header with glassmorphism (backdrop-blur-xl bg-[#0A0E17]/70). Logo on left, links center, 'Admin Login' CTA right."
+    },
+    {
+      "name": "Hero Section",
+      "path": "/",
+      "instructions": "Full viewport height. Use hero_bg image with bg-[#0A0E17]/70 overlay. H1 Tagline: 'The Curated AI Marketplace Bridging Enterprises & Innovation'. Dual CTAs."
+    },
+    {
+      "name": "How It Works",
+      "path": "/",
+      "instructions": "Split layout. Left: Enterprises (Free, connect with vetted AI). Right: Providers (Paid membership, gain enterprise access)."
+    },
+    {
+      "name": "Provider Tiers",
+      "path": "/",
+      "instructions": "3 Cards: Starter ($500/yr), Growth ($1500/yr), Elite ($5000/yr). Add a glowing border/tracing beam effect to the Elite card to emphasize it."
+    },
+    {
+      "name": "AI Maturity Assessment",
+      "path": "/",
+      "instructions": "Dark container with subtle electric cyan glow. Interactive form (Shadcn Input/Select) culminating in a CTA 'Generate Report' (Mocked to simulate Ollama backend integration)."
+    },
+    {
+      "name": "Featured Providers",
+      "path": "/",
+      "instructions": "Bento grid or marquee displaying mock AI providers with their specialized niches."
+    },
+    {
+      "name": "Founder & Trust",
+      "path": "/",
+      "instructions": "Left: founder_portrait (grayscale, high contrast). Right: Trust statement and 'Vetting Rubric' list with check icons."
+    },
+    {
+      "name": "Intake & Application Forms",
+      "path": "/",
+      "instructions": "Two distinct sections or dialogs. Enterprise Intake (needs, budget) and Provider Application (capabilities)."
+    },
+    {
+      "name": "Footer",
+      "path": "/",
+      "instructions": "Large footer. Left: Dubai address + image. Right: Bangalore address + image. Muted text."
+    },
+    {
+      "name": "Admin Dashboard",
+      "path": "/admin",
+      "instructions": "Sidebar + Main content layout. 1. Stats Cards (Leads, Active Providers, Revenue). 2. Vetting Kanban Board (Columns: New, Assessing, Approved, Rejected). 3. Leads Pipeline Table. Use high density bento grid."
+    }
+  ],
+  "accessibility": {
+    "guidelines": "Ensure APCA contrast ratio. Add aria-labels to icon buttons. Include data-testid on all interactive elements (e.g., data-testid='tier-elite-btn'). Hover states must explicitly set text color."
+  },
+  "motion": {
+    "interactions": "Buttons: scale 0.98 on tap. Cards: -translate-y-1 and shadow-lg on hover. Page entrance: staggered fade-in via framer-motion."
+  },
+  "instructions_to_main_agent": [
+    "Install dependencies: yarn add framer-motion lucide-react clsx tailwind-merge @phosphor-icons/react react-router-dom",
+    "IMPORTANT: You are working with .js files, NOT .tsx files. Use standard JS/JSX syntax.",
+    "Add fonts Playfair Display and Manrope via Google Fonts in index.html.",
+    "Implement the landing page at route '/' and admin dashboard at '/admin' using React Router.",
+    "For the AI backend integration, create a simulated Ollama text generation function (e.g., mock async response returning an 'AI Maturity Score').",
+    "Customize Shadcn components heavily to remove the default light/gray look. Apply #111827 backgrounds and gold/cyan accents.",
+    "CRITICAL: Do not use fully transparent backgrounds on nav/dropdowns. Always use solid or glass surfaces."
+  ],
+  "UNIVERSAL_GUIDELINES_FOR_MAIN_AGENT": [
+    "Avoid generic centered layouts.",
+    "Create depth through layered design elements with z-index hierarchy and glassmorphism.",
+    "DO NOT apply transition: all globally. Add transitions to specific interactive elements.",
+    "Always use modern button styles (pill-shaped or sharp) with interaction animations.",
+    "NEVER use AI assistant Emoji characters (🤖🧠💡) for icons. Use Phosphor or Lucide icons.",
+    "Every interaction needs micro-animations - hover states, transitions.",
+    "Use 2-3x more spacing than feels comfortable (e.g., py-24).",
+    "NEVER use placeholder URLs (via.placeholder.com). Use the provided image_urls.",
+    "Use data-testid on all interactive elements to support testing."
+  ]
+}
