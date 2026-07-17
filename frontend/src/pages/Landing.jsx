@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   ArrowRight, Sparkles, ShieldCheck, Building2, Rocket, CheckCircle2,
-  MapPin, Mail, Cpu, Globe2, BadgeCheck, Layers,
+  MapPin, Mail, Cpu, Globe2, BadgeCheck, Layers, Linkedin, Twitter,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { Wordmark } from "@/components/Logo";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import NewsletterForm from "@/components/NewsletterForm";
 
 const IMG = {
   hero: "https://images.unsplash.com/photo-1770486036751-e55247238964?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxODF8MHwxfHNlYXJjaHwxfHxhYnN0cmFjdCUyMG5ldXJhbCUyMG5ldHdvcmslMjBub2RlcyUyMGRhcmt8ZW58MHx8fHwxNzg0MzEyMTQ4fDA&ixlib=rb-4.1.0&q=85",
@@ -472,43 +473,95 @@ const Forms = () => (
 );
 
 const Footer = () => (
-  <footer className="border-t border-[var(--na-border)] pt-20 pb-12">
-    <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-12 gap-10">
-      <div className="md:col-span-4">
-        <Wordmark />
-        <p className="mt-4 text-sm text-[var(--na-text-muted)] max-w-xs">The curated bridge between enterprises and the AI startup ecosystem.</p>
+  <footer className="border-t border-[var(--na-border)] pt-20 pb-10">
+    <div className="max-w-7xl mx-auto px-6">
+      {/* Top: brand + newsletter */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 pb-16 border-b border-[var(--na-border)]">
+        <div className="lg:col-span-5">
+          <Wordmark />
+          <p className="mt-4 text-sm text-[var(--na-text-muted)] max-w-md leading-relaxed">
+            The curated bridge between enterprises and the AI startup ecosystem. Founder-led, human-vetted, boutique by design.
+          </p>
+          <div className="mt-6 flex items-center gap-3">
+            <a href="https://linkedin.com/company/neuralatlas" target="_blank" rel="noreferrer" aria-label="LinkedIn" data-testid="social-linkedin"
+               className="w-9 h-9 rounded-full border border-[var(--na-border-strong)] flex items-center justify-center hover:border-[var(--na-gold)] transition-colors">
+              <Linkedin className="w-4 h-4 text-[var(--na-text)]" />
+            </a>
+            <a href="https://twitter.com/neuralatlas" target="_blank" rel="noreferrer" aria-label="Twitter" data-testid="social-twitter"
+               className="w-9 h-9 rounded-full border border-[var(--na-border-strong)] flex items-center justify-center hover:border-[var(--na-gold)] transition-colors">
+              <Twitter className="w-4 h-4 text-[var(--na-text)]" />
+            </a>
+            <a href="mailto:info@neuralatlas.io" aria-label="Email" data-testid="social-email"
+               className="w-9 h-9 rounded-full border border-[var(--na-border-strong)] flex items-center justify-center hover:border-[var(--na-gold)] transition-colors">
+              <Mail className="w-4 h-4 text-[var(--na-text)]" />
+            </a>
+          </div>
+        </div>
+
+        <div className="lg:col-span-4 lg:col-start-9">
+          <NewsletterForm />
+        </div>
       </div>
 
-      <div className="md:col-span-4 na-card overflow-hidden">
-        <div className="h-32 relative">
-          <img src={IMG.dubai} className="w-full h-full object-cover opacity-70" alt="Dubai" />
-          <div className="absolute inset-0" style={{ background: "linear-gradient(0deg, var(--na-surface) 0%, transparent 100%)" }} />
+      {/* Middle: link columns + offices */}
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-10 py-14 border-b border-[var(--na-border)]">
+        <div className="col-span-2 md:col-span-1">
+          <div className="label-eyebrow mb-4">Product</div>
+          <ul className="space-y-3 text-sm">
+            <li><a href="/#how" className="text-[var(--na-text-soft)] hover:text-[var(--na-text)]" data-testid="footer-how">How it works</a></li>
+            <li><a href="/#tiers" className="text-[var(--na-text-soft)] hover:text-[var(--na-text)]" data-testid="footer-tiers">Membership</a></li>
+            <li><a href="/#assess" className="text-[var(--na-text-soft)] hover:text-[var(--na-text)]" data-testid="footer-assess">AI Assessment</a></li>
+            <li><a href="/#network" className="text-[var(--na-text-soft)] hover:text-[var(--na-text)]" data-testid="footer-network">Vetted Network</a></li>
+          </ul>
         </div>
-        <div className="p-5">
-          <div className="label-eyebrow flex items-center gap-2"><MapPin className="w-3.5 h-3.5" /> Dubai</div>
-          <div className="text-[var(--na-text-soft)] text-sm mt-2">DIFC · Emirates Financial Towers</div>
-          <div className="text-[var(--na-text-muted)] text-sm">United Arab Emirates</div>
+        <div>
+          <div className="label-eyebrow mb-4">Company</div>
+          <ul className="space-y-3 text-sm">
+            <li><Link to="/about" className="text-[var(--na-text-soft)] hover:text-[var(--na-text)]" data-testid="footer-about">About</Link></li>
+            <li><Link to="/contact" className="text-[var(--na-text-soft)] hover:text-[var(--na-text)]" data-testid="footer-contact">Contact</Link></li>
+            <li><Link to="/careers" className="text-[var(--na-text-soft)] hover:text-[var(--na-text)]" data-testid="footer-careers">Careers</Link></li>
+          </ul>
+        </div>
+        <div>
+          <div className="label-eyebrow mb-4">Legal</div>
+          <ul className="space-y-3 text-sm">
+            <li><Link to="/privacy" className="text-[var(--na-text-soft)] hover:text-[var(--na-text)]" data-testid="footer-privacy">Privacy Policy</Link></li>
+            <li><Link to="/terms" className="text-[var(--na-text-soft)] hover:text-[var(--na-text)]" data-testid="footer-terms">Terms of Service</Link></li>
+            <li><Link to="/cookies" className="text-[var(--na-text-soft)] hover:text-[var(--na-text)]" data-testid="footer-cookies">Cookie Policy</Link></li>
+          </ul>
+        </div>
+
+        <div className="col-span-2 md:col-span-1 lg:col-span-3 grid grid-cols-2 gap-4">
+          <div className="na-card overflow-hidden">
+            <div className="h-24 relative">
+              <img src={IMG.dubai} className="w-full h-full object-cover opacity-70" alt="Dubai" />
+              <div className="absolute inset-0" style={{ background: "linear-gradient(0deg, var(--na-surface) 0%, transparent 100%)" }} />
+            </div>
+            <div className="p-4">
+              <div className="label-eyebrow flex items-center gap-2"><MapPin className="w-3 h-3" /> Dubai</div>
+              <div className="text-[var(--na-text-soft)] text-xs mt-1">DIFC · Emirates Financial Towers</div>
+            </div>
+          </div>
+          <div className="na-card overflow-hidden">
+            <div className="h-24 relative">
+              <img src={IMG.bangalore} className="w-full h-full object-cover opacity-70" alt="Bangalore" />
+              <div className="absolute inset-0" style={{ background: "linear-gradient(0deg, var(--na-surface) 0%, transparent 100%)" }} />
+            </div>
+            <div className="p-4">
+              <div className="label-eyebrow flex items-center gap-2"><MapPin className="w-3 h-3" /> Bangalore</div>
+              <div className="text-[var(--na-text-soft)] text-xs mt-1">Indiranagar · 100 Ft Road</div>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className="md:col-span-4 na-card overflow-hidden">
-        <div className="h-32 relative">
-          <img src={IMG.bangalore} className="w-full h-full object-cover opacity-70" alt="Bangalore" />
-          <div className="absolute inset-0" style={{ background: "linear-gradient(0deg, var(--na-surface) 0%, transparent 100%)" }} />
+      {/* Bottom bar */}
+      <div className="mt-8 flex items-center justify-between flex-wrap gap-4 text-xs text-[var(--na-text-muted)]">
+        <div>© {new Date().getFullYear()} NeuralAtlas Ventures · Bangalore &middot; Dubai · All rights reserved.</div>
+        <div className="flex items-center gap-6">
+          <a href="mailto:info@neuralatlas.io" className="link-underline flex items-center gap-2"><Mail className="w-3.5 h-3.5" /> info@neuralatlas.io</a>
+          <span className="flex items-center gap-2"><Globe2 className="w-3.5 h-3.5" /> EN</span>
         </div>
-        <div className="p-5">
-          <div className="label-eyebrow flex items-center gap-2"><MapPin className="w-3.5 h-3.5" /> Bangalore</div>
-          <div className="text-[var(--na-text-soft)] text-sm mt-2">Indiranagar · 100 Ft Road</div>
-          <div className="text-[var(--na-text-muted)] text-sm">Karnataka, India</div>
-        </div>
-      </div>
-    </div>
-
-    <div className="max-w-7xl mx-auto px-6 mt-12 flex items-center justify-between flex-wrap gap-4 text-xs text-[var(--na-text-muted)]">
-      <div>© {new Date().getFullYear()} NeuralAtlas · A curated AI marketplace</div>
-      <div className="flex items-center gap-6">
-        <a href="mailto:info@neuralatlas.io" className="link-underline flex items-center gap-2"><Mail className="w-3.5 h-3.5" /> info@neuralatlas.io</a>
-        <span className="flex items-center gap-2"><Globe2 className="w-3.5 h-3.5" /> Bangalore · Dubai</span>
       </div>
     </div>
   </footer>

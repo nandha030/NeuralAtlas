@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, Fragment } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
-  ArrowLeft, Building2, Rocket, Sparkles, TrendingUp, RefreshCcw, LogOut,
+  ArrowLeft, Building2, Rocket, Sparkles, TrendingUp, RefreshCcw, LogOut, Wand2, ChevronDown, ChevronRight,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -72,6 +72,8 @@ export default function AdminDashboard() {
   const [enterprises, setEnterprises] = useState([]);
   const [providers, setProviders] = useState([]);
   const [assessments, setAssessments] = useState([]);
+  const [expanded, setExpanded] = useState({});
+  const [regenLoading, setRegenLoading] = useState({});
   const { logout } = useAuth();
   const navigate = useNavigate();
 
@@ -97,6 +99,17 @@ export default function AdminDashboard() {
     try { await api.patch(`/provider/application/${id}`, { status }); toast.success("Updated"); load(); }
     catch { toast.error("Update failed"); }
   };
+  const regenShortlist = async (id) => {
+    setRegenLoading(s => ({ ...s, [id]: true }));
+    try {
+      const { data } = await api.post(`/enterprise/intake/${id}/shortlist`);
+      setEnterprises(list => list.map(e => e.id === id ? { ...e, shortlist: data.shortlist } : e));
+      setExpanded(s => ({ ...s, [id]: true }));
+      toast.success((data.shortlist || []).length ? "Shortlist regenerated" : "No approved providers yet");
+    } catch { toast.error("Shortlist failed"); }
+    finally { setRegenLoading(s => ({ ...s, [id]: false })); }
+  };
+  const toggleExpand = (id) => setExpanded(s => ({ ...s, [id]: !s[id] }));
 
   const doLogout = async () => {
     await logout();
@@ -182,28 +195,95 @@ export default function AdminDashboard() {
                         <tr><td colSpan={7} className="p-8 text-center text-[var(--na-text-muted)] italic">No enterprise intakes yet</td></tr>
                       )}
                       {enterprises.map(e => (
-                        <tr key={e.id} className="border-t border-[var(--na-border)]" data-testid={`row-ent-${e.id}`}>
-                          <td className="p-4 text-[var(--na-text)]">{e.company_name}</td>
-                          <td className="p-4 text-[var(--na-text-soft)]">{e.contact_name}<div className="text-xs text-[var(--na-text-muted)] font-mono">{e.email}</div></td>
-                          <td className="p-4 text-[var(--na-text-soft)]">{e.industry}</td>
-                          <td className="p-4 text-[var(--na-text-soft)]">{e.company_size}</td>
-                          <td className="p-4 text-[var(--na-text-soft)]">{e.budget_range}</td>
-                          <td className="p-4">
-                            <span className={`text-[10px] uppercase tracking-widest border rounded-full px-2 py-1 ${STATUS_COLORS[e.status] || ""}`}>{e.status}</span>
-                          </td>
-                          <td className="p-4">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" className="text-xs h-8" data-testid={`ent-update-${e.id}`}>Update ▾</Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent>
-                                {entStatuses.map(s => (
-                                  <DropdownMenuItem key={s} onClick={() => moveEnterprise(e.id, s)} className="capitalize">{s}</DropdownMenuItem>
-                                ))}
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </td>
-                        </tr>
+                        <Fragment key={e.id}>
+                          <tr className="border-t border-[var(--na-border)]" data-testid={`row-ent-${e.id}`}>
+                            <td className="p-4 text-[var(--na-text)]">
+                              <button
+                                className="flex items-center gap-1 text-left hover:text-[var(--na-gold)]"
+                                onClick={() => toggleExpand(e.id)}
+                                data-testid={`row-ent-expand-${e.id}`}
+                              >
+                                {expanded[e.id] ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                                {e.company_name}
+                                {(e.shortlist?.length || 0) > 0 && (
+                                  <span className="ml-2 text-[10px] uppercase tracking-widest text-[var(--na-cyan)] border border-[var(--na-cyan)]/40 rounded-full px-1.5 py-0.5">
+                                    {e.shortlist.length} match{e.shortlist.length > 1 ? "es" : ""}
+                                  </span>
+                                )}
+                              </button>
+                            </td>
+                            <td className="p-4 text-[var(--na-text-soft)]">{e.contact_name}<div className="text-xs text-[var(--na-text-muted)] font-mono">{e.email}</div></td>
+                            <td className="p-4 text-[var(--na-text-soft)]">{e.industry}</td>
+                            <td className="p-4 text-[var(--na-text-soft)]">{e.company_size}</td>
+                            <td className="p-4 text-[var(--na-text-soft)]">{e.budget_range}</td>
+                            <td className="p-4">
+                              <span className={`text-[10px] uppercase tracking-widest border rounded-full px-2 py-1 ${STATUS_COLORS[e.status] || ""}`}>{e.status}</span>
+                            </td>
+                            <td className="p-4">
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => regenShortlist(e.id)}
+                                  disabled={regenLoading[e.id]}
+                                  className="text-xs h-8 px-3 rounded-full border border-[var(--na-border-strong)] hover:border-[var(--na-gold)] flex items-center gap-1 disabled:opacity-50"
+                                  data-testid={`ent-shortlist-${e.id}`}
+                                  title="Regenerate AI shortlist"
+                                >
+                                  <Wand2 className="w-3 h-3" /> {regenLoading[e.id] ? "…" : "Match"}
+                                </button>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" className="text-xs h-8" data-testid={`ent-update-${e.id}`}>Status ▾</Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent>
+                                    {entStatuses.map(s => (
+                                      <DropdownMenuItem key={s} onClick={() => moveEnterprise(e.id, s)} className="capitalize">{s}</DropdownMenuItem>
+                                    ))}
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </div>
+                            </td>
+                          </tr>
+                          {expanded[e.id] && (
+                            <tr className="bg-[var(--na-bg-subtle)]" data-testid={`row-ent-detail-${e.id}`}>
+                              <td colSpan={7} className="p-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                  <div>
+                                    <div className="label-eyebrow mb-2">Project brief</div>
+                                    <p className="text-sm text-[var(--na-text-soft)] leading-relaxed">{e.project_description}</p>
+                                    <div className="mt-3 text-xs text-[var(--na-text-muted)]">
+                                      Timeline: {e.timeline} · Region: {e.region}
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <div className="label-eyebrow mb-2 flex items-center gap-2"><Wand2 className="w-3 h-3" /> AI Shortlist</div>
+                                    {(e.shortlist?.length || 0) === 0 ? (
+                                      <p className="text-xs text-[var(--na-text-muted)] italic">
+                                        No matches yet. {providers.filter(p => p.status === "approved").length === 0
+                                          ? "Approve at least one provider, then click Match."
+                                          : "Click Match to generate a shortlist."}
+                                      </p>
+                                    ) : (
+                                      <ol className="space-y-3">
+                                        {e.shortlist.map((m, idx) => (
+                                          <li key={m.provider_id} className="border border-[var(--na-border)] rounded-lg p-3 bg-[var(--na-surface)]">
+                                            <div className="flex items-start justify-between gap-2">
+                                              <div className="text-sm font-medium text-[var(--na-text)]">
+                                                <span className="text-[var(--na-gold)] font-mono mr-2">#{idx + 1}</span>
+                                                {m.name}
+                                              </div>
+                                              <span className="text-[10px] uppercase tracking-widest text-[var(--na-gold)] border border-[var(--na-gold)]/40 rounded-full px-2 py-0.5">{m.tier}</span>
+                                            </div>
+                                            <p className="mt-2 text-xs text-[var(--na-text-soft)] leading-relaxed">{m.fit_reason}</p>
+                                          </li>
+                                        ))}
+                                      </ol>
+                                    )}
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </Fragment>
                       ))}
                     </tbody>
                   </table>

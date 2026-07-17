@@ -204,5 +204,141 @@ class TestEndToEnd:
         assert r.status_code == 200
 
 
+# ---------- Iteration 4: Shortlist auto-generation ----------
+
+class TestShortlist:
+    def _base_intake(self, marker: str, project: str) -> dict:
+        return {
+            "company_name": marker,
+            "contact_name": "Shortlist Tester",
+            "email": "shortlist@example.com",
+            "role": "CTO",
+            "industry": "BFSI",
+            "company_size": "large",
+            "project_description": project,
+            "budget_range": "$200k",
+            "timeline": "Q1 2026",
+            "region": "India",
+        }
+
+    def test_intake_returns_shortlist_field(self):
+        # Even if no approved providers, shortlist must be a list (possibly empty).
+        marker = f"TEST_Shortlist_{int(time.time())}"
+        r = requests.post(f"{API}/enterprise/intake",
+                          json=self._base_intake(marker, "Fraud detection RAG platform for retail banking."))
+        assert r.status_code == 200, r.text
+        data = r.json()
+        assert "shortlist" in data, "response must include shortlist field"
+        assert isinstance(data["shortlist"], list)
+
+    def test_intake_shortlist_populated_when_approved_providers_exist(self, auth_headers):
+        # Ensure at least one approved provider exists.
+        r = requests.get(f"{API}/provider/application", headers=auth_headers)
+        assert r.status_code == 200
+        providers = r.json()
+        approved = [p for p in providers if p.get("status") == "approved"]
+        if not approved:
+            # Approve first non-approved provider (or create + approve one) for the assertion.
+            if providers:
+                pid = providers[0]["id"]
+                requests.patch(f"{API}/provider/application/{pid}",
+                               headers=auth_headers, json={"status": "approved"})
+            else:
+                # Create then approve
+                create_payload = {
+                    "company_name": f"TEST_Prov_ForShortlist_{int(time.time())}",
+                    "contact_name": "For Shortlist",
+                    "email": "sl_prov@example.com",
+                    "headquarters": "Bangalore",
+                    "team_size": "10-50",
+                    "specializations": "Fraud detection, RAG, LLM ops for BFSI",
+                    "case_studies": "Deployed fraud detection at Tier1 bank.",
+                    "tier_interest": "growth",
+                }
+                cr = requests.post(f"{API}/provider/application", json=create_payload)
+                pid = cr.json()["id"]
+                requests.patch(f"{API}/provider/application/{pid}",
+                               headers=auth_headers, json={"status": "approved"})
+
+        marker = f"TEST_ShortlistPop_{int(time.time())}"
+        r = requests.post(f"{API}/enterprise/intake",
+                          json=self._base_intake(marker,
+                                                 "Build a fraud detection and RAG pipeline for BFSI KYC."))
+        assert r.status_code == 200, r.text
+        data = r.json()
+        assert isinstance(data["shortlist"], list)
+        assert len(data["shortlist"]) >= 1, "Expected at least 1 shortlist match with approved providers"
+        assert len(data["shortlist"]) <= 3
+        m = data["shortlist"][0]
+        for key in ("provider_id", "name", "tier", "fit_reason"):
+            assert key in m and m[key], f"missing/empty {key} in match: {m}"
+
+        # Persistence: fetch admin list and confirm shortlist persisted
+        list_r = requests.get(f"{API}/enterprise/intake", headers=auth_headers)
+        assert list_r.status_code == 200
+        found = next((x for x in list_r.json() if x["id"] == data["id"]), None)
+        assert found is not None
+        assert isinstance(found["shortlist"], list)
+        assert len(found["shortlist"]) == len(data["shortlist"])
+
+    def test_regenerate_shortlist_requires_auth(self):
+        # First create an intake so we have an id to hit
+        marker = f"TEST_RegenAuth_{int(time.time())}"
+        r = requests.post(f"{API}/enterprise/intake",
+                          json=self._base_intake(marker, "Regen auth test — RAG project."))
+        assert r.status_code == 200
+        intake_id = r.json()["id"]
+        # No bearer -> 401
+        r2 = requests.post(f"{API}/enterprise/intake/{intake_id}/shortlist")
+        assert r2.status_code == 401
+
+    def test_regenerate_shortlist_with_admin(self, auth_headers):
+        marker = f"TEST_Regen_{int(time.time())}"
+        r = requests.post(f"{API}/enterprise/intake",
+                          json=self._base_intake(marker, "Fraud detection RAG for KYC in BFSI."))
+        assert r.status_code == 200
+        intake_id = r.json()["id"]
+        r2 = requests.post(f"{API}/enterprise/intake/{intake_id}/shortlist",
+                           headers=auth_headers)
+        assert r2.status_code == 200, r2.text
+        data = r2.json()
+        assert data["id"] == intake_id
+        assert isinstance(data["shortlist"], list)
+
+    def test_regenerate_shortlist_404_for_unknown(self, auth_headers):
+        r = requests.post(f"{API}/enterprise/intake/does-not-exist-xyz/shortlist",
+                          headers=auth_headers)
+        assert r.status_code == 404
+
+
+# ---------- Iteration 4: Newsletter ----------
+
+class TestNewsletter:
+    def test_subscribe_valid_email(self):
+        email = f"test_news_{int(time.time())}@example.com"
+        r = requests.post(f"{API}/newsletter/subscribe", json={"email": email})
+        assert r.status_code == 200, r.text
+        data = r.json()
+        assert data.get("ok") is True
+        assert data.get("email") == email.lower()
+
+    def test_subscribe_idempotent_same_email(self):
+        email = f"test_news_dupe_{int(time.time())}@example.com"
+        r1 = requests.post(f"{API}/newsletter/subscribe", json={"email": email})
+        r2 = requests.post(f"{API}/newsletter/subscribe", json={"email": email})
+        assert r1.status_code == 200
+        assert r2.status_code == 200
+        assert r1.json().get("ok") is True
+        assert r2.json().get("ok") is True
+
+    def test_subscribe_invalid_email(self):
+        r = requests.post(f"{API}/newsletter/subscribe", json={"email": "not-an-email"})
+        assert r.status_code == 422
+
+    def test_subscribe_missing_email(self):
+        r = requests.post(f"{API}/newsletter/subscribe", json={})
+        assert r.status_code == 422
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "--tb=short"])

@@ -114,6 +114,13 @@ class LoginPayload(BaseModel):
     password: str
 
 
+class ShortlistMatch(BaseModel):
+    provider_id: str
+    name: str
+    tier: str
+    fit_reason: str
+
+
 class EnterpriseIntake(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -128,6 +135,7 @@ class EnterpriseIntake(BaseModel):
     timeline: str
     region: Optional[str] = "India / UAE"
     status: Literal["new", "reviewing", "matched", "closed"] = "new"
+    shortlist: List[ShortlistMatch] = Field(default_factory=list)
     created_at: str = Field(default_factory=now_iso)
 
 
@@ -203,6 +211,98 @@ class StatusUpdate(BaseModel):
     status: str
 
 
+class NewsletterSubscribe(BaseModel):
+    email: EmailStr
+
+
+# ---------- Shortlist matcher ----------
+
+async def generate_shortlist(intake: dict) -> List[dict]:
+    """Return top-3 matching providers from approved network, with fit reasons."""
+    approved = await db.provider_applications.find(
+        {"status": "approved"}, {"_id": 0}
+    ).to_list(200)
+    if not approved:
+        return []
+
+    provider_lines = []
+    for p in approved:
+        provider_lines.append(
+            f"- id:{p['id']} | name:{p['company_name']} | tier:{p['tier_interest']} "
+            f"| hq:{p.get('headquarters','')} | specialties:{p.get('specializations','')[:180]}"
+        )
+    providers_block = "\n".join(provider_lines)
+
+    system_msg = (
+        "You are the matching engine of NeuralAtlas, a curated AI marketplace. "
+        "Given an enterprise's project brief and a list of vetted AI providers, "
+        "pick the top 3 best-fit providers and write a concise 1-sentence 'why they fit' note for each. "
+        "Output STRICT JSON only — no preamble, no markdown fences."
+    )
+    prompt = f"""
+Enterprise brief:
+- Company: {intake['company_name']}
+- Industry: {intake['industry']}
+- Size: {intake['company_size']}
+- Budget: {intake['budget_range']}
+- Timeline: {intake['timeline']}
+- Region: {intake.get('region', '')}
+- Project: {intake['project_description']}
+
+Approved providers:
+{providers_block}
+
+Return JSON with this exact shape:
+{{"matches":[{{"provider_id":"<id>","name":"<name>","tier":"<tier>","fit_reason":"<one sentence>"}}]}}
+
+Rules:
+- Return up to 3 matches. If fewer than 3 providers are relevant, return only the relevant ones.
+- Use provider_id from the list above.
+- Keep fit_reason under 25 words, specific to the project.
+""".strip()
+
+    if not EMERGENT_LLM_KEY:
+        return [
+            {"provider_id": p["id"], "name": p["company_name"],
+             "tier": p["tier_interest"], "fit_reason": "Auto-selected (LLM key not configured)."}
+            for p in approved[:3]
+        ]
+
+    try:
+        import json as _json
+        chat = LlmChat(
+            api_key=EMERGENT_LLM_KEY,
+            session_id=f"shortlist-{uuid.uuid4()}",
+            system_message=system_msg,
+        ).with_model("anthropic", "claude-sonnet-4-6")
+        resp = await chat.send_message(UserMessage(text=prompt))
+        text = resp if isinstance(resp, str) else str(resp)
+        # Strip potential fences
+        t = text.strip()
+        if t.startswith("```"):
+            t = t.split("```", 2)[1]
+            if t.startswith("json"):
+                t = t[4:]
+            t = t.strip()
+        data = _json.loads(t)
+        matches = data.get("matches", [])[:3]
+        approved_ids = {p["id"] for p in approved}
+        clean = []
+        for m in matches:
+            pid = m.get("provider_id", "")
+            if pid in approved_ids:
+                clean.append({
+                    "provider_id": pid,
+                    "name": str(m.get("name", ""))[:120],
+                    "tier": str(m.get("tier", ""))[:40],
+                    "fit_reason": str(m.get("fit_reason", ""))[:280],
+                })
+        return clean
+    except Exception as e:
+        logger.exception(f"Shortlist generation failed: {e}")
+        return []
+
+
 # ---------- Public routes ----------
 
 @api_router.get("/")
@@ -213,7 +313,15 @@ async def root():
 @api_router.post("/enterprise/intake", response_model=EnterpriseIntake)
 async def create_enterprise_intake(payload: EnterpriseIntakeCreate):
     obj = EnterpriseIntake(**payload.model_dump())
+    obj.shortlist = [ShortlistMatch(**m) for m in await generate_shortlist(obj.model_dump())]
     await db.enterprise_intakes.insert_one(obj.model_dump())
+
+    shortlist_html = ""
+    if obj.shortlist:
+        rows = "".join(
+            f"<li><b>{m.name}</b> ({m.tier}) — {m.fit_reason}</li>" for m in obj.shortlist
+        )
+        shortlist_html = f"<h3>Auto-shortlist</h3><ol>{rows}</ol>"
 
     html = f"""
     <h2>New Enterprise Intake</h2>
@@ -221,6 +329,7 @@ async def create_enterprise_intake(payload: EnterpriseIntakeCreate):
     <p>{obj.contact_name} &lt;{obj.email}&gt; · {obj.role}</p>
     <p><b>Budget:</b> {obj.budget_range} · <b>Timeline:</b> {obj.timeline} · <b>Region:</b> {obj.region}</p>
     <p><b>Project:</b><br>{obj.project_description}</p>
+    {shortlist_html}
     <hr><small>Sent by NeuralAtlas.io</small>
     """
     asyncio.get_event_loop().run_in_executor(
@@ -359,6 +468,30 @@ async def update_enterprise_status(intake_id: str, upd: StatusUpdate, user: dict
     if r.matched_count == 0:
         raise HTTPException(404, "Not found")
     return {"ok": True}
+
+
+@api_router.post("/enterprise/intake/{intake_id}/shortlist", response_model=EnterpriseIntake)
+async def regenerate_shortlist(intake_id: str, user: dict = Depends(get_current_admin)):
+    intake = await db.enterprise_intakes.find_one({"id": intake_id}, {"_id": 0})
+    if not intake:
+        raise HTTPException(404, "Not found")
+    matches = await generate_shortlist(intake)
+    await db.enterprise_intakes.update_one({"id": intake_id}, {"$set": {"shortlist": matches}})
+    intake["shortlist"] = matches
+    return intake
+
+
+@api_router.post("/newsletter/subscribe")
+async def newsletter_subscribe(payload: NewsletterSubscribe):
+    email = payload.email.lower()
+    existing = await db.newsletter_subscribers.find_one({"email": email})
+    if not existing:
+        await db.newsletter_subscribers.insert_one({
+            "id": str(uuid.uuid4()),
+            "email": email,
+            "created_at": now_iso(),
+        })
+    return {"ok": True, "email": email}
 
 
 @api_router.get("/provider/application", response_model=List[ProviderApplication])
