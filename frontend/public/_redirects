@@ -1,0 +1,3 @@
+# SPA fallback — ensures React Router client-side routes work on hard refresh
+# Used by BOTH Netlify and Cloudflare Pages (identical syntax)
+/*  /index.html  200

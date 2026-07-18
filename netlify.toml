@@ -1,13 +1,18 @@
 [build]
   base = "frontend"
-  command = "yarn build"
+  command = "yarn install --frozen-lockfile && yarn build"
   publish = "build"
 
 [build.environment]
-  # Node version for the Netlify build image
   NODE_VERSION = "20"
-  # Skip Netlify's own secrets scan on CRA output
+  YARN_VERSION = "1.22.22"
+  # Prevent CRA from treating warnings as errors on CI
+  CI = "false"
+  # Skip source maps in production build (smaller, faster deploys)
+  GENERATE_SOURCEMAP = "false"
+  # Skip Netlify's secrets scan on the compiled build folder
   SECRETS_SCAN_OMIT_PATHS = "frontend/build/**"
+  SECRETS_SCAN_OMIT_KEYS = "REACT_APP_BACKEND_URL"
 
 # SPA fallback so React Router client-side routes work on hard refresh
 # (e.g. /admin/login, /case-studies/:slug)
@@ -24,3 +29,10 @@
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
     Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+    Strict-Transport-Security = "max-age=31536000; includeSubDomains"
+
+# Long-cache static build assets (they are content-hashed by CRA)
+[[headers]]
+  for = "/static/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
