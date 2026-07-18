@@ -13,7 +13,7 @@ from pydantic import BaseModel, Field, EmailStr, ConfigDict
 from typing import List, Optional, Literal
 from datetime import datetime, timezone, timedelta
 
-from emergentintegrations.llm.chat import LlmChat, UserMessage
+import httpx
 import resend
 
 
@@ -24,7 +24,8 @@ mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
-EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY', '')
+OLLAMA_BASE_URL = os.environ.get('OLLAMA_BASE_URL', '')  # e.g. http://your-ollama-host:11434
+OLLAMA_MODEL = os.environ.get('OLLAMA_MODEL', 'llama3.1')
 JWT_SECRET = os.environ['JWT_SECRET']
 JWT_ALGORITHM = "HS256"
 ADMIN_EMAIL = os.environ['ADMIN_EMAIL'].lower()
@@ -47,6 +48,24 @@ logger = logging.getLogger(__name__)
 
 def now_iso():
     return datetime.now(timezone.utc).isoformat()
+
+
+async def call_llm(system_message: str, prompt: str) -> str:
+    """Call a self-hosted Ollama instance's chat API."""
+    async with httpx.AsyncClient(timeout=60.0) as http_client:
+        resp = await http_client.post(
+            f"{OLLAMA_BASE_URL}/api/chat",
+            json={
+                "model": OLLAMA_MODEL,
+                "messages": [
+                    {"role": "system", "content": system_message},
+                    {"role": "user", "content": prompt},
+                ],
+                "stream": False,
+            },
+        )
+        resp.raise_for_status()
+        return resp.json()["message"]["content"]
 
 
 def hash_password(p: str) -> str:
@@ -332,22 +351,16 @@ Rules:
 - Keep fit_reason under 25 words, specific to the project.
 """.strip()
 
-    if not EMERGENT_LLM_KEY:
+    if not OLLAMA_BASE_URL:
         return [
             {"provider_id": p["id"], "name": p["company_name"],
-             "tier": p["tier_interest"], "fit_reason": "Auto-selected (LLM key not configured)."}
+             "tier": p["tier_interest"], "fit_reason": "Auto-selected (LLM not configured)."}
             for p in approved[:3]
         ]
 
     try:
         import json as _json
-        chat = LlmChat(
-            api_key=EMERGENT_LLM_KEY,
-            session_id=f"shortlist-{uuid.uuid4()}",
-            system_message=system_msg,
-        ).with_model("anthropic", "claude-sonnet-4-6")
-        resp = await chat.send_message(UserMessage(text=prompt))
-        text = resp if isinstance(resp, str) else str(resp)
+        text = await call_llm(system_msg, prompt)
         # Strip potential fences
         t = text.strip()
         if t.startswith("```"):
@@ -472,20 +485,14 @@ One line describing the type of AI vendor NeuralAtlas would shortlist for this s
 """.strip()
 
     report_md = ""
-    if EMERGENT_LLM_KEY:
+    if OLLAMA_BASE_URL:
         try:
-            chat = LlmChat(
-                api_key=EMERGENT_LLM_KEY,
-                session_id=f"assessment-{uuid.uuid4()}",
-                system_message=system_msg,
-            ).with_model("anthropic", "claude-sonnet-4-6")
-            resp = await chat.send_message(UserMessage(text=prompt))
-            report_md = resp if isinstance(resp, str) else str(resp)
+            report_md = await call_llm(system_msg, prompt)
         except Exception as e:
             logger.exception("LLM error")
             report_md = f"### Report Generation Notice\nLLM temporarily unavailable ({e}). Score: **{score}/100**."
     else:
-        report_md = f"### Report\nScore: **{score}/100** — LLM key not configured."
+        report_md = f"### Report\nScore: **{score}/100** — LLM not configured."
 
     obj = MaturityAssessment(**payload.model_dump(), score=score, report_markdown=report_md)
     await db.assessments.insert_one(obj.model_dump())
