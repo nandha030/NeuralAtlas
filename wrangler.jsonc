@@ -2,5 +2,7 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "neuralatlas",
   "compatibility_date": "2025-01-01",
-  "pages_build_output_dir": "./frontend/build"
+  "assets": {
+    "directory": "./frontend/build"
+  }
 }
