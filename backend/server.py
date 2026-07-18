@@ -290,8 +290,9 @@ class CaseStudyUpdate(BaseModel):
 async def generate_shortlist(intake: dict) -> List[dict]:
     """Return top-3 matching providers from approved network, with fit reasons."""
     approved = await db.provider_applications.find(
-        {"status": "approved"}, {"_id": 0}
-    ).to_list(200)
+        {"status": "approved"},
+        {"_id": 0, "id": 1, "company_name": 1, "tier_interest": 1, "headquarters": 1, "specializations": 1},
+    ).limit(200).to_list(200)
     if not approved:
         return []
 
@@ -528,7 +529,7 @@ async def me(user: dict = Depends(get_current_admin)):
 
 @api_router.get("/enterprise/intake", response_model=List[EnterpriseIntake])
 async def list_enterprise_intakes(user: dict = Depends(get_current_admin)):
-    docs = await db.enterprise_intakes.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
+    docs = await db.enterprise_intakes.find({}, {"_id": 0}).sort("created_at", -1).limit(200).to_list(200)
     return docs
 
 
@@ -578,7 +579,7 @@ async def list_case_studies(include_drafts: bool = False, request: Request = Non
             query = {"published": True}
     else:
         query = {"published": True}
-    docs = await db.case_studies.find(query, {"_id": 0}).sort("created_at", -1).to_list(200)
+    docs = await db.case_studies.find(query, {"_id": 0}).sort("created_at", -1).limit(100).to_list(100)
     return docs
 
 
@@ -628,7 +629,7 @@ async def delete_case_study(cs_id: str, user: dict = Depends(get_current_admin))
 
 @api_router.get("/provider/application", response_model=List[ProviderApplication])
 async def list_provider_applications(user: dict = Depends(get_current_admin)):
-    docs = await db.provider_applications.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
+    docs = await db.provider_applications.find({}, {"_id": 0}).sort("created_at", -1).limit(200).to_list(200)
     return docs
 
 
@@ -642,7 +643,7 @@ async def update_provider_status(app_id: str, upd: StatusUpdate, user: dict = De
 
 @api_router.get("/assessment", response_model=List[MaturityAssessment])
 async def list_assessments(user: dict = Depends(get_current_admin)):
-    docs = await db.assessments.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
+    docs = await db.assessments.find({}, {"_id": 0}).sort("created_at", -1).limit(200).to_list(200)
     return docs
 
 
@@ -661,7 +662,7 @@ async def admin_stats(user: dict = Depends(get_current_admin)):
     tier_pricing = {"starter": 500, "growth": 1500, "elite": 5000}
     approved_docs = await db.provider_applications.find(
         {"status": "approved"}, {"_id": 0, "tier_interest": 1}
-    ).to_list(1000)
+    ).limit(500).to_list(500)
     est_arr = sum(tier_pricing.get(d.get("tier_interest", "starter"), 0) for d in approved_docs)
 
     return {
