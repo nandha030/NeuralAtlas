@@ -24,8 +24,8 @@ mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
-OLLAMA_BASE_URL = os.environ.get('OLLAMA_BASE_URL', '')  # e.g. http://your-ollama-host:11434
-OLLAMA_MODEL = os.environ.get('OLLAMA_MODEL', 'llama3.1')
+GROK_API_KEY = xai-XPjzKaaKH7CPeTfQWf23D3B8TJ439oZjMwaeWtPHyHo1vCww6398tGkBmxOfPLmIfJoBUNBwiAzoaAvG
+GROK_MODEL = os.environ.get('GROK_MODEL', 'grok-4.3')
 JWT_SECRET = os.environ['JWT_SECRET']
 JWT_ALGORITHM = "HS256"
 ADMIN_EMAIL = os.environ['ADMIN_EMAIL'].lower()
@@ -51,21 +51,21 @@ def now_iso():
 
 
 async def call_llm(system_message: str, prompt: str) -> str:
-    """Call a self-hosted Ollama instance's chat API."""
+    """Call the xAI Grok chat completions API (OpenAI-compatible)."""
     async with httpx.AsyncClient(timeout=60.0) as http_client:
         resp = await http_client.post(
-            f"{OLLAMA_BASE_URL}/api/chat",
+            "https://api.x.ai/v1/chat/completions",
+            headers={"Authorization": f"Bearer {GROK_API_KEY}"},
             json={
-                "model": OLLAMA_MODEL,
+                "model": GROK_MODEL,
                 "messages": [
                     {"role": "system", "content": system_message},
                     {"role": "user", "content": prompt},
                 ],
-                "stream": False,
             },
         )
         resp.raise_for_status()
-        return resp.json()["message"]["content"]
+        return resp.json()["choices"][0]["message"]["content"]
 
 
 def hash_password(p: str) -> str:
@@ -351,7 +351,7 @@ Rules:
 - Keep fit_reason under 25 words, specific to the project.
 """.strip()
 
-    if not OLLAMA_BASE_URL:
+    if not GROK_API_KEY:
         return [
             {"provider_id": p["id"], "name": p["company_name"],
              "tier": p["tier_interest"], "fit_reason": "Auto-selected (LLM not configured)."}
@@ -485,7 +485,7 @@ One line describing the type of AI vendor NeuralAtlas would shortlist for this s
 """.strip()
 
     report_md = ""
-    if OLLAMA_BASE_URL:
+    if GROK_API_KEY:
         try:
             report_md = await call_llm(system_msg, prompt)
         except Exception as e:
